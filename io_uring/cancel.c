@@ -381,6 +381,10 @@ out:
 	return ret;
 }
 
+/**
+ * Iterates over the hash list and cancels all requests matching the task context.
+ * Returns true if any requests were cancelled.
+ */
 bool io_cancel_remove_all(struct io_ring_ctx *ctx, struct io_uring_task *tctx,
 			  struct hlist_head *list, bool cancel_all,
 			  bool (*cancel)(struct io_kiocb *))
@@ -402,6 +406,10 @@ bool io_cancel_remove_all(struct io_ring_ctx *ctx, struct io_uring_task *tctx,
 	return found;
 }
 
+/**
+ * Iterates over the hash list and cancels requests matching the cancel data.
+ * Returns the number of cancelled requests or -ENOENT if none found.
+ */
 int io_cancel_remove(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 		     unsigned int issue_flags, struct hlist_head *list,
 		     bool (*cancel)(struct io_kiocb *))
