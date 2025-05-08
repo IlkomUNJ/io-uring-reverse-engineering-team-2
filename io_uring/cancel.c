@@ -34,6 +34,13 @@ struct io_cancel {
 /*
  * Returns true if the request matches the criteria outlined by 'cd'.
  */
+/*
+ * io_cancel_req_match - Check if a request matches the cancel criteria
+ * @req: io_kiocb request to check
+ * @cd: Cancel data containing match criteria
+ *
+ * Returns true if the request matches the criteria outlined by 'cd'.
+ */
 bool io_cancel_req_match(struct io_kiocb *req, struct io_cancel_data *cd)
 {
 	bool match_user_data = cd->flags & IORING_ASYNC_CANCEL_USERDATA;
@@ -65,6 +72,9 @@ check_seq:
 	return true;
 }
 
+/**
+ * Returns true if the work item matches the cancel criteria.
+ */
 static bool io_cancel_cb(struct io_wq_work *work, void *data)
 {
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
@@ -73,6 +83,10 @@ static bool io_cancel_cb(struct io_wq_work *work, void *data)
 	return io_cancel_req_match(req, cd);
 }
 
+/**
+ * Attempts to cancel a single matching request in the io-wq. Returns 0 on success,
+ * -EALREADY if the request is running, or -ENOENT if not found.
+ */
 static int io_async_cancel_one(struct io_uring_task *tctx,
 			       struct io_cancel_data *cd)
 {
