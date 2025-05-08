@@ -112,6 +112,11 @@ int io_fadvise_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+/**
+ * Performs the fadvise syscall on the specified file using the parameters
+ * prepared in the io_fadvise structure. Sets the result in the request structure.
+ * Returns IOU_OK on success.
+ */
 int io_fadvise(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_fadvise *fa = io_kiocb_to_cmd(req, struct io_fadvise);
