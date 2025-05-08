@@ -27,10 +27,6 @@ struct io_epoll_wait {
 };
 
 /**
- * io_epoll_ctl_prep - Prepare epoll control operation from SQE
- * @req: io_kiocb request structure
- * @sqe: Submission queue entry containing epoll parameters
- *
  * Extracts epoll control parameters from the SQE and stores them in the
  * io_epoll command structure. Validates input fields and copies event data
  * from user space if required by the operation.
@@ -79,10 +75,6 @@ int io_epoll_ctl(struct io_kiocb *req, unsigned int issue_flags)
 }
 
 /**
- * io_epoll_wait_prep - Prepare epoll wait operation from SQE
- * @req: io_kiocb request structure
- * @sqe: Submission queue entry containing wait parameters
- *
  * Extracts the maximum number of events and the user events pointer from
  * the SQE and stores them in the io_epoll_wait structure. Validates input
  * fields for correctness.
@@ -100,7 +92,12 @@ int io_epoll_wait_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
-
+/**
+ * Calls epoll_sendevents to deliver ready events to user space. Handles
+ * retry logic if no events are available and sets the result in the request
+ * structure. Returns IOU_OK on success, -EAGAIN if operation should be retried,
+ * or a negative error code on failure.
+ */
 int io_epoll_wait(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_epoll_wait *iew = io_kiocb_to_cmd(req, struct io_epoll_wait);
