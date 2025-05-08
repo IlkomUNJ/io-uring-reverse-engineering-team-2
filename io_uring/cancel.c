@@ -114,6 +114,10 @@ static int io_async_cancel_one(struct io_uring_task *tctx,
 	return ret;
 }
 
+/**
+ * Tries to cancel a request using async cancel, then falls back to poll, waitid,
+ * or futex cancel if not found. Returns 0 on success or a negative error code.
+ */
 int io_try_cancel(struct io_uring_task *tctx, struct io_cancel_data *cd,
 		  unsigned issue_flags)
 {
@@ -149,6 +153,10 @@ int io_try_cancel(struct io_uring_task *tctx, struct io_cancel_data *cd,
 	return ret;
 }
 
+/**
+ * Extracts cancel parameters from the SQE and stores them in the io_cancel structure.
+ * Validates input fields for correctness. Returns 0 on success or a negative error code.
+ */
 int io_async_cancel_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_cancel *cancel = io_kiocb_to_cmd(req, struct io_cancel);
@@ -176,6 +184,10 @@ int io_async_cancel_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+/**
+ * Attempts to cancel all matching requests in the current and all other io-wq's.
+ * Returns the number of cancelled requests or a negative error code.
+ */
 static int __io_async_cancel(struct io_cancel_data *cd,
 			     struct io_uring_task *tctx,
 			     unsigned int issue_flags)
@@ -209,6 +221,11 @@ static int __io_async_cancel(struct io_cancel_data *cd,
 	return all ? nr : ret;
 }
 
+/**
+ * Attempts to cancel requests matching the criteria in the io_cancel structure.
+ * Handles fixed and normal file descriptors. Sets the result in the request structure.
+ * Returns IOU_OK.
+ */
 int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_cancel *cancel = io_kiocb_to_cmd(req, struct io_cancel);
@@ -246,6 +263,10 @@ done:
 	return IOU_OK;
 }
 
+/**
+ * Looks up and cancels requests synchronously, handling fixed file descriptors.
+ * Returns 0 on success or a negative error code.
+ */
 static int __io_sync_cancel(struct io_uring_task *tctx,
 			    struct io_cancel_data *cd, int fd)
 {
@@ -267,6 +288,10 @@ static int __io_sync_cancel(struct io_uring_task *tctx,
 	return __io_async_cancel(cd, tctx, 0);
 }
 
+/**
+ * Handles synchronous cancellation of requests, including timeout handling and
+ * repeated attempts until completion or timeout. Returns 0 on success or a negative error code.
+ */
 int io_sync_cancel(struct io_ring_ctx *ctx, void __user *arg)
 	__must_hold(&ctx->uring_lock)
 {
