@@ -20,6 +20,10 @@ struct io_ftrunc {
 	loff_t				len;
 };
 
+/**
+ * This function prepares a ftruncate request by validating the submission queue entry 
+ * and extracting the required parameters
+ */
 int io_ftruncate_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_ftrunc *ft = io_kiocb_to_cmd(req, struct io_ftrunc);
@@ -34,6 +38,9 @@ int io_ftruncate_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+/**
+ * This fucntion executes the ftruncate operation to resize the file associated with req
+ */
 int io_ftruncate(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_ftrunc *ft = io_kiocb_to_cmd(req, struct io_ftrunc);
