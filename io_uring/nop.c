@@ -22,6 +22,11 @@ struct io_nop {
 #define NOP_FLAGS	(IORING_NOP_INJECT_RESULT | IORING_NOP_FIXED_FILE | \
 			 IORING_NOP_FIXED_BUFFER | IORING_NOP_FILE)
 
+/**
+ * Extracts NOP flags and optional result, file descriptor, and buffer index from the SQE.
+ * Validates flags and sets up the io_nop structure for execution.
+ * Returns 0 on success or a negative error code on failure.
+ */
 int io_nop_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_nop *nop = io_kiocb_to_cmd(req, struct io_nop);
@@ -43,6 +48,11 @@ int io_nop_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+/**
+ * Executes a NOP request, optionally injecting a result, using a file descriptor,
+ * or using a fixed buffer as specified by the flags. Sets the result in the request.
+ * Returns IOU_OK.
+ */
 int io_nop(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_nop *nop = io_kiocb_to_cmd(req, struct io_nop);

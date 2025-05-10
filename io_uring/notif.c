@@ -11,6 +11,10 @@
 
 static const struct ubuf_info_ops io_ubuf_ops;
 
+/**
+ * Completes the notification request, handles zero-copy reporting, unaccounts memory,
+ * and completes all linked notifications in the chain.
+ */
 static void io_notif_tw_complete(struct io_kiocb *notif, io_tw_token_t tw)
 {
 	struct io_notif_data *nd = io_notif_to_data(notif);
@@ -33,6 +37,10 @@ static void io_notif_tw_complete(struct io_kiocb *notif, io_tw_token_t tw)
 	} while (nd);
 }
 
+/**
+ * Handles completion of a ubuf transmission, updates zero-copy state, manages reference
+ * counting, and schedules task work for notification completion.
+ */
 void io_tx_ubuf_complete(struct sk_buff *skb, struct ubuf_info *uarg,
 			 bool success)
 {
@@ -60,6 +68,11 @@ void io_tx_ubuf_complete(struct sk_buff *skb, struct ubuf_info *uarg,
 	__io_req_task_work_add(notif, tw_flags);
 }
 
+/**
+ * Links the notification's ubuf to the socket buffer for zero-copy completion.
+ * Handles chaining of notifications and ensures correct context and provider.
+ * Returns 0 on success or a negative error code.
+ */
 static int io_link_skb(struct sk_buff *skb, struct ubuf_info *uarg)
 {
 	struct io_notif_data *nd, *prev_nd;
@@ -104,6 +117,11 @@ static const struct ubuf_info_ops io_ubuf_ops = {
 	.link_skb = io_link_skb,
 };
 
+/**
+ * Allocates a new io_kiocb notification request and initializes its associated
+ * io_notif_data structure for use with notifications and zero-copy completions.
+ * Returns pointer to the allocated notification request, or NULL on failure.
+ */
 struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
 	__must_hold(&ctx->uring_lock)
 {
