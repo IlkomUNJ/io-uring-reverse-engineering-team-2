@@ -12,6 +12,7 @@ For this assigment, we want a little clarity regarding what kind of functions be
 |               | linux/mm/slub.c                      | kfree                           | 1         |
 | filettable.h  | io_uring.c                           | io_file_get_flags               | 1         |
 | io_uring.h    | /include/linux/lockdep.h             | lockdep_assert                  | 2         |
+|               | tools/include/linux/compiler.h       | READ_ONCE                       | 3         |
 |               | /include/linux/lockdep.h             | lockdep_assert_held             | 7         |
 |               | /include/linux/preempt.h             | in_task                         | 1         |
 |               | io_uring.h                           | __io_req_task_work_add          | 2         |
@@ -53,4 +54,26 @@ For this assigment, we want a little clarity regarding what kind of functions be
 |               | io_uring.c                           | io_req_task_complete            | 1         |
 |               | kernel/time/timekeeping.c            | ktime_get                       | 1         |
 |               | kernel/time/timekeeping.c            | ktime_get_with_offset           | 1         |
+<<<<<<< HEAD
 |               |                                      |                                 |           |
+=======
+| io-wq.h       | tools/include/linux/refcount.h       | refcount_dec_and_test           | 1         |
+|               | tools/lib/slab.c                     | kfree                           | 1         |
+|               | tools/arch/x86/include/asm/atomic.h  | atomic_read                     | 1         |
+| kbuff.h       | kbuff.c                              | io_kbuf_recycle_legacy          | 1         |
+|               | kbuff.h                              | io_kbuf_recycle_ring            | 1         |
+|               | kbuff.h                              | io_kbuf_commit                  | 1         |
+|               | kbuff.h                              | __io_put_kbuf_ring              | 2         |
+|               | tools/include/linux/list.h           | list_add                        | 1         |
+|               | kbuff.h                              | __io_put_kbuf_list              | 1         |
+|               | kbuff.c                              | __io_put_kbuf                   | 1         |
+|               | kbuff.h                              | __io_put_kbufs                  | 2         |
+| napi.h        | include/linux/list.h                 | list_empty                      | 1         |
+|               | napi.h                               | io_napi                         | 1         |
+|               | napi.c                               | __io_napi_busy_loop             | 1         |
+|               | /net/socket.c                        | sock_from_file                  | 1         |
+|               | napi.c                               | __io_napi_add_id                | 1         |
+|               | tools/include/linux/compiler.h       | READ_ONCE                       | 2         |
+| net.h         | include/linux/stddef.h               | struct_group                    | 2         |
+
+>>>>>>> a61ef9803fe80139345f840c3e8aa572d3aa09fc
