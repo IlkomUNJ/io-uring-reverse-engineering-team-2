@@ -16,6 +16,10 @@
 #include "rsrc.h"
 
 #ifdef CONFIG_PROC_FS
+/**
+ * Outputs UID, GID, groups, and effective capabilities for the given personality
+ * to the provided seq_file. Used for /proc/<pid>/fdinfo reporting.
+ */
 static __cold int io_uring_show_cred(struct seq_file *m, unsigned int id,
 		const struct cred *cred)
 {
@@ -47,6 +51,9 @@ static __cold int io_uring_show_cred(struct seq_file *m, unsigned int id,
 }
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
+/**
+ * Outputs NAPI tracking status and configuration to the fdinfo seq_file.
+ */
 static __cold void common_tracking_show_fdinfo(struct io_ring_ctx *ctx,
 					       struct seq_file *m,
 					       const char *tracking_strategy)
@@ -60,6 +67,9 @@ static __cold void common_tracking_show_fdinfo(struct io_ring_ctx *ctx,
 		seq_puts(m, "napi_prefer_busy_poll:\tfalse\n");
 }
 
+/**
+ * Outputs the current NAPI tracking mode and related information to fdinfo.
+ */
 static __cold void napi_show_fdinfo(struct io_ring_ctx *ctx,
 				    struct seq_file *m)
 {
@@ -80,6 +90,9 @@ static __cold void napi_show_fdinfo(struct io_ring_ctx *ctx,
 	}
 }
 #else
+/**
+ * No-op when CONFIG_NET_RX_BUSY_POLL is not set.
+ */
 static inline void napi_show_fdinfo(struct io_ring_ctx *ctx,
 				    struct seq_file *m)
 {
@@ -89,6 +102,11 @@ static inline void napi_show_fdinfo(struct io_ring_ctx *ctx,
 /*
  * Caller holds a reference to the file already, we don't need to do
  * anything else to get an extra reference.
+ */
+/**
+ * Outputs detailed state information about the io_uring instance, including
+ * SQ/CQ state, SQEs, CQEs, thread info, user files, user buffers, personalities,
+ * poll lists, and overflow lists. Used for debugging and introspection via procfs.
  */
 __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
 {

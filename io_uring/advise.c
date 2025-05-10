@@ -28,6 +28,11 @@ struct io_madvise {
 	u32				advice;
 };
 
+/**
+ * Extracts madvise parameters from the SQE and stores them in the io_madvise structure.
+ * Validates input fields and sets the request to force async execution.
+ * Returns 0 on success or a negative error code if not supported or invalid.
+ */
 int io_madvise_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 #if defined(CONFIG_ADVISE_SYSCALLS) && defined(CONFIG_MMU)
@@ -48,6 +53,11 @@ int io_madvise_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 #endif
 }
 
+/**
+ * Performs the madvise syscall on the specified memory region using the parameters
+ * prepared in the io_madvise structure. Sets the result in the request structure.
+ * Returns IOU_OK on success or a negative error code if not supported.
+ */
 int io_madvise(struct io_kiocb *req, unsigned int issue_flags)
 {
 #if defined(CONFIG_ADVISE_SYSCALLS) && defined(CONFIG_MMU)
@@ -64,6 +74,10 @@ int io_madvise(struct io_kiocb *req, unsigned int issue_flags)
 #endif
 }
 
+/**
+ * Returns true if the given advice type requires forced async execution,
+ * otherwise returns false. Used internally for request preparation.
+ */
 static bool io_fadvise_force_async(struct io_fadvise *fa)
 {
 	switch (fa->advice) {
@@ -76,6 +90,11 @@ static bool io_fadvise_force_async(struct io_fadvise *fa)
 	}
 }
 
+/**
+ * Extracts fadvise parameters from the SQE and stores them in the io_fadvise structure.
+ * Validates input fields and sets the request to force async if needed.
+ * Returns 0 on success or a negative error code on failure.
+ */
 int io_fadvise_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_fadvise *fa = io_kiocb_to_cmd(req, struct io_fadvise);
@@ -93,6 +112,11 @@ int io_fadvise_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+/**
+ * Performs the fadvise syscall on the specified file using the parameters
+ * prepared in the io_fadvise structure. Sets the result in the request structure.
+ * Returns IOU_OK on success.
+ */
 int io_fadvise(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_fadvise *fa = io_kiocb_to_cmd(req, struct io_fadvise);
