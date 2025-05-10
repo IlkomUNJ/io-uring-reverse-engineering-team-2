@@ -204,6 +204,10 @@ static bool io_match_linked(struct io_kiocb *head)
  * As io_match_task() but protected against racing with linked timeouts.
  * User must not hold timeout_lock.
  */
+/**
+ * Returns true if the request matches the task context or if cancel_all is set.
+ * Protects against races with linked timeouts by locking the timeout_lock if needed.
+ */
 bool io_match_task_safe(struct io_kiocb *head, struct io_uring_task *tctx,
 			bool cancel_all)
 {
@@ -227,17 +231,26 @@ bool io_match_task_safe(struct io_kiocb *head, struct io_uring_task *tctx,
 	return matched;
 }
 
+/**
+ * Sets the request as failed and updates its result code.
+ */
 static inline void req_fail_link_node(struct io_kiocb *req, int res)
 {
 	req_set_fail(req);
 	io_req_set_res(req, res, 0);
 }
 
+/**
+ * Adds the given request to the context's submit_state free list for reuse.
+ */
 static inline void io_req_add_to_cache(struct io_kiocb *req, struct io_ring_ctx *ctx)
 {
 	wq_stack_add_head(&req->comp_list, &ctx->submit_state.free_list);
 }
 
+/**
+ * Completes the ref_comp completion when the last reference is dropped.
+ */
 static __cold void io_ring_ctx_ref_free(struct percpu_ref *ref)
 {
 	struct io_ring_ctx *ctx = container_of(ref, struct io_ring_ctx, refs);
@@ -245,6 +258,9 @@ static __cold void io_ring_ctx_ref_free(struct percpu_ref *ref)
 	complete(&ctx->ref_comp);
 }
 
+/**
+ * Processes all fallback requests in the fallback_llist for the context.
+ */
 static __cold void io_fallback_req_func(struct work_struct *work)
 {
 	struct io_ring_ctx *ctx = container_of(work, struct io_ring_ctx,

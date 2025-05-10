@@ -54,9 +54,6 @@ For this assigment, we want a little clarity regarding what kind of functions be
 |               | io_uring.c                           | io_req_task_complete            | 1         |
 |               | kernel/time/timekeeping.c            | ktime_get                       | 1         |
 |               | kernel/time/timekeeping.c            | ktime_get_with_offset           | 1         |
-<<<<<<< HEAD
-|               |                                      |                                 |           |
-=======
 | io-wq.h       | tools/include/linux/refcount.h       | refcount_dec_and_test           | 1         |
 |               | tools/lib/slab.c                     | kfree                           | 1         |
 |               | tools/arch/x86/include/asm/atomic.h  | atomic_read                     | 1         |
@@ -76,4 +73,3 @@ For this assigment, we want a little clarity regarding what kind of functions be
 |               | tools/include/linux/compiler.h       | READ_ONCE                       | 2         |
 | net.h         | include/linux/stddef.h               | struct_group                    | 2         |
 
->>>>>>> a61ef9803fe80139345f840c3e8aa572d3aa09fc
