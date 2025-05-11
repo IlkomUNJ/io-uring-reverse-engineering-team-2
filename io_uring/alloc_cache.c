@@ -2,6 +2,11 @@
 
 #include "alloc_cache.h"
 
+/**
+ * Iterates through all cached entries, freeing each one using the provided
+ * free function, then releases the memory used for the cache array itself.
+ * Sets the cache entries pointer to NULL after freeing.
+ */
 void io_alloc_cache_free(struct io_alloc_cache *cache,
 			 void (*free)(const void *))
 {
@@ -17,7 +22,10 @@ void io_alloc_cache_free(struct io_alloc_cache *cache,
 	cache->entries = NULL;
 }
 
-/* returns false if the cache was initialized properly */
+/**
+ * Allocates memory for the cache entry array and sets up cache parameters.
+ * Returns false if initialization succeeds, true if memory allocation fails.
+ */
 bool io_alloc_cache_init(struct io_alloc_cache *cache,
 			 unsigned max_nr, unsigned int size,
 			 unsigned int init_bytes)
@@ -33,6 +41,11 @@ bool io_alloc_cache_init(struct io_alloc_cache *cache,
 	return false;
 }
 
+/**
+ * Allocates a new object of the cache's element size. If init_clear is set,
+ * the allocated memory is zeroed for the specified number of bytes.
+ * Returns a pointer to the new object or NULL on failure.
+ */
 void *io_cache_alloc_new(struct io_alloc_cache *cache, gfp_t gfp)
 {
 	void *obj;
