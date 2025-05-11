@@ -27,6 +27,10 @@ enum {
 	IO_SQ_THREAD_SHOULD_PARK,
 };
 
+/*
+ Unpark the submission queue polling thread, allowing it to continue processing after being unparked
+ Releases the sqd lock after handling the thread state
+*/
 void io_sq_thread_unpark(struct io_sq_data *sqd)
 	__releases(&sqd->lock)
 {
@@ -43,6 +47,10 @@ void io_sq_thread_unpark(struct io_sq_data *sqd)
 	wake_up(&sqd->wait);
 }
 
+
+/*
+ Park the submission queue polling thread, allowing it to stop processing and wait for a wakeup signal
+ */
 void io_sq_thread_park(struct io_sq_data *sqd)
 	__acquires(&sqd->lock)
 {
@@ -55,6 +63,10 @@ void io_sq_thread_park(struct io_sq_data *sqd)
 		wake_up_process(sqd->thread);
 }
 
+/*
+Stops the submission queue polling thread permanently
+Sets the stop flag, wakes up the thread and waits for completion
+*/
 void io_sq_thread_stop(struct io_sq_data *sqd)
 {
 	WARN_ON_ONCE(sqd->thread == current);
@@ -68,6 +80,10 @@ void io_sq_thread_stop(struct io_sq_data *sqd)
 	wait_for_completion(&sqd->exited);
 }
 
+/*
+Decrements reference count of sq_data and frees it when count reaches zero
+Stops the thread before freeing
+*/
 void io_put_sq_data(struct io_sq_data *sqd)
 {
 	if (refcount_dec_and_test(&sqd->refs)) {
@@ -78,6 +94,7 @@ void io_put_sq_data(struct io_sq_data *sqd)
 	}
 }
 
+// Updates the idle timeout value for the submission queue thread based on the maximum idle time of all contexts
 static __cold void io_sqd_update_thread_idle(struct io_sq_data *sqd)
 {
 	struct io_ring_ctx *ctx;
@@ -88,6 +105,10 @@ static __cold void io_sqd_update_thread_idle(struct io_sq_data *sqd)
 	sqd->sq_thread_idle = sq_thread_idle;
 }
 
+/*
+Cleans up a context's association with submission queue polling thread
+Parks thread, removes context from list, updates idle time and releases reference
+*/
 void io_sq_thread_finish(struct io_ring_ctx *ctx)
 {
 	struct io_sq_data *sqd = ctx->sq_data;
@@ -102,6 +123,7 @@ void io_sq_thread_finish(struct io_ring_ctx *ctx)
 		ctx->sq_data = NULL;
 	}
 }
+
 
 static struct io_sq_data *io_attach_sq_data(struct io_uring_params *p)
 {
