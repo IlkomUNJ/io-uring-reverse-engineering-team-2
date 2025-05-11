@@ -124,7 +124,11 @@ void io_sq_thread_finish(struct io_ring_ctx *ctx)
 	}
 }
 
-
+/*
+Attach to an existing submission queue data structure based on a file descriptor
+Validates the fd points to a valid io_uring instance and checks permissions
+Returns pointer to io_sq_data or error pointer
+*/
 static struct io_sq_data *io_attach_sq_data(struct io_uring_params *p)
 {
 	struct io_ring_ctx *ctx_attach;
@@ -147,6 +151,11 @@ static struct io_sq_data *io_attach_sq_data(struct io_uring_params *p)
 	return sqd;
 }
 
+/*
+Get or create a submission queue data structure for the given parameters
+If attaching to an existing WQ, tries to attach; otherwise allocates a new one
+Sets up reference counts and initial state
+*/
 static struct io_sq_data *io_get_sq_data(struct io_uring_params *p,
 					 bool *attached)
 {
@@ -177,11 +186,21 @@ static struct io_sq_data *io_get_sq_data(struct io_uring_params *p,
 	return sqd;
 }
 
+
+/*
+Check if there are pending events for the submission queue polling thread
+Returns true if any state bits are set
+*/
 static inline bool io_sqd_events_pending(struct io_sq_data *sqd)
 {
 	return READ_ONCE(sqd->state);
 }
 
+/*
+Handle submission queue entries for a given context
+Submits entries up to a capped value if needed, and handles iopoll
+Returns the number of entries submitted or error code
+*/
 static int __io_sq_thread(struct io_ring_ctx *ctx, bool cap_entries)
 {
 	unsigned int to_submit;
@@ -220,6 +239,10 @@ static int __io_sq_thread(struct io_ring_ctx *ctx, bool cap_entries)
 	return ret;
 }
 
+/*
+Handle events for the submission queue polling thread, such as park or stop requests or signals
+Returns true if the thread should exit
+*/
 static bool io_sqd_handle_event(struct io_sq_data *sqd)
 {
 	bool did_sig = false;
@@ -238,11 +261,9 @@ static bool io_sqd_handle_event(struct io_sq_data *sqd)
 }
 
 /*
- * Run task_work, processing the retry_list first. The retry_list holds
- * entries that we passed on in the previous run, if we had more task_work
- * than we were asked to process. Newly queued task_work isn't run until the
- * retry list has been fully processed.
- */
+Run task_work for the current task, processing the retry_list first
+Returns the number of task_work items processed
+*/
 static unsigned int io_sq_tw(struct llist_node **retry_list, int max_entries)
 {
 	struct io_uring_task *tctx = current->io_uring;
@@ -261,6 +282,10 @@ out:
 	return count;
 }
 
+/*
+Check if there is pending task_work for the current task or retry_list
+Returns true if pending
+*/
 static bool io_sq_tw_pending(struct llist_node *retry_list)
 {
 	struct io_uring_task *tctx = current->io_uring;
@@ -268,6 +293,7 @@ static bool io_sq_tw_pending(struct llist_node *retry_list)
 	return retry_list || !llist_empty(&tctx->task_list);
 }
 
+// Update the work time statistc for the submission queue polling thread
 static void io_sq_update_worktime(struct io_sq_data *sqd, struct rusage *start)
 {
 	struct rusage end;
@@ -279,6 +305,11 @@ static void io_sq_update_worktime(struct io_sq_data *sqd, struct rusage *start)
 	sqd->work_time += end.ru_stime.tv_usec + end.ru_stime.tv_sec * 1000000;
 }
 
+
+/*
+Main function for the submission queue polling kernel thread
+Handles submission processing, task work, parking, and stopping.
+*/
 static int io_sq_thread(void *data)
 {
 	struct llist_node *retry_list = NULL;
@@ -411,6 +442,10 @@ err_out:
 	do_exit(0);
 }
 
+/*
+Wait until there is space in the submission queue for the given context
+Used by SQPOLL threads to block until the queue is not full
+*/
 void io_sqpoll_wait_sq(struct io_ring_ctx *ctx)
 {
 	DEFINE_WAIT(wait);
@@ -428,6 +463,10 @@ void io_sqpoll_wait_sq(struct io_ring_ctx *ctx)
 	finish_wait(&ctx->sqo_sq_wait, &wait);
 }
 
+/*
+Create and initialize the submission queue polling thread if SQPOLL is enabled
+Handles thread creation, CPU affinity, and context attachment
+*/
 __cold int io_sq_offload_create(struct io_ring_ctx *ctx,
 				struct io_uring_params *p)
 {
@@ -530,6 +569,7 @@ err:
 	return ret;
 }
 
+// Set CPU affinity for SQPOLL workers thread assciated with the given context
 __cold int io_sqpoll_wq_cpu_affinity(struct io_ring_ctx *ctx,
 				     cpumask_var_t mask)
 {
