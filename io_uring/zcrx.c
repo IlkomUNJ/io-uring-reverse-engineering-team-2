@@ -160,7 +160,7 @@ static void io_zcrx_get_niov_uref(struct net_iov *niov)
 }
 
 /**
- * This function returns the struct page * associated with a specific net_iov
+ * This function returns the "struct page *" associated with a specific net_iov
  */
 static inline struct page *io_zcrx_iov_page(const struct net_iov *niov)
 {
@@ -321,7 +321,7 @@ static struct io_zcrx_ifq *io_zcrx_ifq_alloc(struct io_ring_ctx *ctx)
 
 /**
  * This function safely releases and detaches the network device reference held
- * by the interface queue (ifq), if any
+ * by the interface queue (ifq), if any.
  */
 static void io_zcrx_drop_netdev(struct io_zcrx_ifq *ifq)
 {
@@ -534,7 +534,7 @@ static void io_zcrx_return_niov(struct net_iov *niov)
 }
 
 /**
- * This function reclaims all buffers (net_iov s) that have outstanding user references
+ * This function reclaims all buffers ("net_iov"s) that have outstanding user references
  */
 static void io_zcrx_scrub(struct io_zcrx_ifq *ifq)
 {
@@ -570,6 +570,9 @@ void io_shutdown_zcrx_ifqs(struct io_ring_ctx *ctx)
 	io_close_queue(ctx->ifq);
 }
 
+/**
+ * This function calculates how many receive queue entries are available for processing
+ */
 static inline u32 io_zcrx_rqring_entries(struct io_zcrx_ifq *ifq)
 {
 	u32 entries;
@@ -578,6 +581,9 @@ static inline u32 io_zcrx_rqring_entries(struct io_zcrx_ifq *ifq)
 	return min(entries, ifq->rq_entries);
 }
 
+/**
+ * This function retrieves the next available receive queue entry (RQE) from the interface queue
+ */
 static struct io_uring_zcrx_rqe *io_zcrx_get_rqe(struct io_zcrx_ifq *ifq,
 						 unsigned mask)
 {
@@ -586,6 +592,10 @@ static struct io_uring_zcrx_rqe *io_zcrx_get_rqe(struct io_zcrx_ifq *ifq,
 	return &ifq->rqes[idx];
 }
 
+/**
+ * This function tires to refill the page pool cache from buffer (net_iov) that 
+ * were previously handed to userspace and are now returned
+ */
 static void io_zcrx_ring_refill(struct page_pool *pp,
 				struct io_zcrx_ifq *ifq)
 {
@@ -640,6 +650,10 @@ static void io_zcrx_ring_refill(struct page_pool *pp,
 	spin_unlock_bh(&ifq->rq_lock);
 }
 
+/**
+ * This function is a fallback method to refill the page pool cache using freelist buffers
+ * (not returned via RQ ring)
+ */
 static void io_zcrx_refill_slow(struct page_pool *pp, struct io_zcrx_ifq *ifq)
 {
 	struct io_zcrx_area *area = ifq->area;
@@ -656,6 +670,9 @@ static void io_zcrx_refill_slow(struct page_pool *pp, struct io_zcrx_ifq *ifq)
 	spin_unlock_bh(&area->freelist_lock);
 }
 
+/**
+ * This function custom page pool allocation function used to provide buffers for the RX queue
+ */
 static netmem_ref io_pp_zc_alloc_netmems(struct page_pool *pp, gfp_t gfp)
 {
 	struct io_zcrx_ifq *ifq = pp->mp_priv;
@@ -675,6 +692,9 @@ out_return:
 	return pp->alloc.cache[--pp->alloc.count];
 }
 
+/**
+ * This function releases a netmem back into the freelist
+ */
 static bool io_pp_zc_release_netmem(struct page_pool *pp, netmem_ref netmem)
 {
 	struct net_iov *niov;
@@ -688,6 +708,10 @@ static bool io_pp_zc_release_netmem(struct page_pool *pp, netmem_ref netmem)
 	return false;
 }
 
+/**
+ * This function validates and initializes the page pool 
+ * when it's set up for this zero-copy receive interface
+ */
 static int io_pp_zc_init(struct page_pool *pp)
 {
 	struct io_zcrx_ifq *ifq = pp->mp_priv;
@@ -707,6 +731,9 @@ static int io_pp_zc_init(struct page_pool *pp)
 	return 0;
 }
 
+/**
+ * This function cleans up a page_pool used for zero-copy receives
+ */
 static void io_pp_zc_destroy(struct page_pool *pp)
 {
 	struct io_zcrx_ifq *ifq = pp->mp_priv;
@@ -717,6 +744,9 @@ static void io_pp_zc_destroy(struct page_pool *pp)
 	percpu_ref_put(&ifq->ctx->refs);
 }
 
+/**
+ * This function fills Netlink attributes to describe the memory provider (mp) state
+ */
 static int io_pp_nl_fill(void *mp_priv, struct sk_buff *rsp,
 			 struct netdev_rx_queue *rxq)
 {
@@ -732,6 +762,9 @@ static int io_pp_nl_fill(void *mp_priv, struct sk_buff *rsp,
 	return 0;
 }
 
+/**
+ * This function unbinds the memory provider (mp) from the RX queue
+ */
 static void io_pp_uninstall(void *mp_priv, struct netdev_rx_queue *rxq)
 {
 	struct pp_memory_provider_params *p = &rxq->mp_params;
@@ -751,6 +784,9 @@ static const struct memory_provider_ops io_uring_pp_zc_ops = {
 	.uninstall		= io_pp_uninstall,
 };
 
+/**
+ * This function creates a completion queue entry (CQE) for a received buffer and attaches metadata
+ */
 static bool io_zcrx_queue_cqe(struct io_kiocb *req, struct net_iov *niov,
 			      struct io_zcrx_ifq *ifq, int off, int len)
 {
@@ -774,6 +810,9 @@ static bool io_zcrx_queue_cqe(struct io_kiocb *req, struct net_iov *niov,
 	return true;
 }
 
+/**
+ * This function allocates a net_iov from the freelist when no zero-copy buffers are available
+ */
 static struct net_iov *io_zcrx_alloc_fallback(struct io_zcrx_area *area)
 {
 	struct net_iov *niov = NULL;
@@ -788,6 +827,10 @@ static struct net_iov *io_zcrx_alloc_fallback(struct io_zcrx_area *area)
 	return niov;
 }
 
+/**
+ * This function copies a chunk of memory (up to PAGE_SIZE) from source (user or page) into a fallback net_iov,
+ * queues a CQE, and tracks memory use
+ */
 static ssize_t io_zcrx_copy_chunk(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 				  void *src_base, struct page *src_page,
 				  unsigned int src_offset, size_t len)
@@ -835,6 +878,9 @@ static ssize_t io_zcrx_copy_chunk(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 	return copied ? copied : ret;
 }
 
+/**
+ * This function copies a fragmented buffer (frag) into fallback "net_iov"s using io_zcrx_copy_chunk
+ */
 static int io_zcrx_copy_frag(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 			     const skb_frag_t *frag, int off, int len)
 {
@@ -854,6 +900,10 @@ static int io_zcrx_copy_frag(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 	return copied;
 }
 
+/**
+ * This function receives a single SKB fragment (frag),
+ * using zero-copy if possible
+ */
 static int io_zcrx_recv_frag(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 			     const skb_frag_t *frag, int off, int len)
 {
@@ -879,6 +929,9 @@ static int io_zcrx_recv_frag(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 	return len;
 }
 
+/**
+ * This function is the core function for processing incoming "sk_buff"s in the io_uring ZCRX path
+ */
 static int
 io_zcrx_recv_skb(read_descriptor_t *desc, struct sk_buff *skb,
 		 unsigned int offset, size_t len)
@@ -981,6 +1034,10 @@ out:
 	return offset - start_off;
 }
 
+/**
+ * This function reads TCP socket data and feeds it into the ZC-RX logic 
+ * using tcp_read_sock() and io_zcrx_recv_skb()
+ */
 static int io_zcrx_tcp_recvmsg(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 				struct sock *sk, int flags,
 				unsigned issue_flags, unsigned int *outlen)
@@ -1027,6 +1084,10 @@ out:
 	return ret;
 }
 
+/**
+ * This function is a handler that checks for TCP compatibility and 
+ * delegates to io_zcrx_tcp_recvmsg() for actual data reception
+ */
 int io_zcrx_recv(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 		 struct socket *sock, unsigned int flags,
 		 unsigned issue_flags, unsigned int *len)
