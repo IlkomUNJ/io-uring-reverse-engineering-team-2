@@ -35,6 +35,11 @@
 #define IORING_MAX_RESTRICTIONS	(IORING_RESTRICTION_LAST + \
 				 IORING_REGISTER_LAST + IORING_OP_LAST)
 
+
+/**
+ * Probe supported io_uring operations and fill user probe structure.
+ * Returns 0 on success, negative error code on failure.
+ */				 
 static __cold int io_probe(struct io_ring_ctx *ctx, void __user *arg,
 			   unsigned nr_args)
 {
@@ -74,6 +79,10 @@ out:
 	return ret;
 }
 
+/**
+ * Unregister a personality from the io_uring context.
+ * Returns 0 on success, -EINVAL if not found.
+ */
 int io_unregister_personality(struct io_ring_ctx *ctx, unsigned id)
 {
 	const struct cred *creds;
@@ -87,7 +96,10 @@ int io_unregister_personality(struct io_ring_ctx *ctx, unsigned id)
 	return -EINVAL;
 }
 
-
+/**
+ * Register a new personality for the io_uring context.
+ * Returns personality id on success, negative error code on failure.
+ */
 static int io_register_personality(struct io_ring_ctx *ctx)
 {
 	const struct cred *creds;
@@ -105,6 +117,10 @@ static int io_register_personality(struct io_ring_ctx *ctx)
 	return id;
 }
 
+/**
+ * Parse user-provided restrictions for the ring.
+ * Returns 0 on success, negative error code on failure.
+ */
 static __cold int io_parse_restrictions(void __user *arg, unsigned int nr_args,
 					struct io_restriction *restrictions)
 {
