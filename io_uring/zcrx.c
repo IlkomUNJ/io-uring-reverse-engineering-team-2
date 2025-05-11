@@ -28,6 +28,9 @@
 
 #define IO_DMA_ATTR (DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING)
 
+/**
+ * This function unmaps nr_mapped pages in the ZCRX area from DMA
+ */
 static void __io_zcrx_unmap_area(struct io_zcrx_ifq *ifq,
 				 struct io_zcrx_area *area, int nr_mapped)
 {
@@ -44,12 +47,18 @@ static void __io_zcrx_unmap_area(struct io_zcrx_ifq *ifq,
 	}
 }
 
+/**
+ * This function safely unmaps all DMA mappings for a given ZCRX area if the area is currently mapped
+ */
 static void io_zcrx_unmap_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
 {
 	if (area->is_mapped)
 		__io_zcrx_unmap_area(ifq, area, area->nia.num_niovs);
 }
 
+/**
+ * This function maps user pages in the area for DMA (device access) and assigns the DMA address to each net_iov
+ */
 static int io_zcrx_map_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
 {
 	int i;
@@ -78,6 +87,9 @@ static int io_zcrx_map_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
 	return 0;
 }
 
+/**
+ * This function performs cache synchronization if required by the DMA device.
+ */
 static void io_zcrx_sync_for_device(const struct page_pool *pool,
 				    struct net_iov *niov)
 {
@@ -106,6 +118,9 @@ struct io_zcrx_args {
 
 static const struct memory_provider_ops io_uring_pp_zc_ops;
 
+/**
+ * This function returns the io_zcrx_area that owns the given net_iov
+ */
 static inline struct io_zcrx_area *io_zcrx_iov_to_area(const struct net_iov *niov)
 {
 	struct net_iov_area *owner = net_iov_owner(niov);
@@ -113,6 +128,9 @@ static inline struct io_zcrx_area *io_zcrx_iov_to_area(const struct net_iov *nio
 	return container_of(owner, struct io_zcrx_area, nia);
 }
 
+/**
+ * This function returns a pointer to the atomic user reference counter associated with the net_iov
+ */
 static inline atomic_t *io_get_user_counter(struct net_iov *niov)
 {
 	struct io_zcrx_area *area = io_zcrx_iov_to_area(niov);
@@ -120,6 +138,9 @@ static inline atomic_t *io_get_user_counter(struct net_iov *niov)
 	return &area->user_refs[net_iov_idx(niov)];
 }
 
+/**
+ * This function decrements the user reference count for the net_iov and returns false if already zero
+ */
 static bool io_zcrx_put_niov_uref(struct net_iov *niov)
 {
 	atomic_t *uref = io_get_user_counter(niov);
@@ -130,11 +151,17 @@ static bool io_zcrx_put_niov_uref(struct net_iov *niov)
 	return true;
 }
 
+/**
+ * This function increments the user reference counter for the given net_iov
+ */
 static void io_zcrx_get_niov_uref(struct net_iov *niov)
 {
 	atomic_inc(io_get_user_counter(niov));
 }
 
+/**
+ * This function returns the struct page * associated with a specific net_iov
+ */
 static inline struct page *io_zcrx_iov_page(const struct net_iov *niov)
 {
 	struct io_zcrx_area *area = io_zcrx_iov_to_area(niov);
@@ -142,6 +169,9 @@ static inline struct page *io_zcrx_iov_page(const struct net_iov *niov)
 	return area->pages[net_iov_idx(niov)];
 }
 
+/**
+ * This function allocates a ring buffer used for zero-copy receive, mapping user memory into kernel space
+ */
 static int io_allocate_rbuf_ring(struct io_zcrx_ifq *ifq,
 				 struct io_uring_zcrx_ifq_reg *reg,
 				 struct io_uring_region_desc *rd)
@@ -166,6 +196,9 @@ static int io_allocate_rbuf_ring(struct io_zcrx_ifq *ifq,
 	return 0;
 }
 
+/**
+ * This function frees the ZCRX receive ring region and clears its pointers
+ */
 static void io_free_rbuf_ring(struct io_zcrx_ifq *ifq)
 {
 	io_free_region(ifq->ctx, &ifq->ctx->zcrx_region);
@@ -173,6 +206,9 @@ static void io_free_rbuf_ring(struct io_zcrx_ifq *ifq)
 	ifq->rqes = NULL;
 }
 
+/**
+ * This function frees all memory and resources associated with a registered ZCRX buffer area
+ */
 static void io_zcrx_free_area(struct io_zcrx_area *area)
 {
 	io_zcrx_unmap_area(area->ifq, area);
@@ -187,6 +223,9 @@ static void io_zcrx_free_area(struct io_zcrx_area *area)
 	kfree(area);
 }
 
+/**
+ * This function allocates and initializes a new ZCRX area for zero-copy receive operations
+ */
 static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 			       struct io_zcrx_area **res,
 			       struct io_uring_zcrx_area_reg *area_reg)
@@ -262,6 +301,9 @@ err:
 	return ret;
 }
 
+/**
+ * This function allocates and initializes a new io_zcrx_ifq (interface queue) structure 
+ */
 static struct io_zcrx_ifq *io_zcrx_ifq_alloc(struct io_ring_ctx *ctx)
 {
 	struct io_zcrx_ifq *ifq;
@@ -277,6 +319,10 @@ static struct io_zcrx_ifq *io_zcrx_ifq_alloc(struct io_ring_ctx *ctx)
 	return ifq;
 }
 
+/**
+ * This function safely releases and detaches the network device reference held
+ * by the interface queue (ifq), if any
+ */
 static void io_zcrx_drop_netdev(struct io_zcrx_ifq *ifq)
 {
 	spin_lock(&ifq->lock);
@@ -287,6 +333,9 @@ static void io_zcrx_drop_netdev(struct io_zcrx_ifq *ifq)
 	spin_unlock(&ifq->lock);
 }
 
+/**
+ * This function closes the receive queue on the associated network device, if it was opened
+ */
 static void io_close_queue(struct io_zcrx_ifq *ifq)
 {
 	struct net_device *netdev;
@@ -312,6 +361,9 @@ static void io_close_queue(struct io_zcrx_ifq *ifq)
 	ifq->if_rxq = -1;
 }
 
+/**
+ * This function compeltely frees the resources associated with an interface queue (ifq)
+ */
 static void io_zcrx_ifq_free(struct io_zcrx_ifq *ifq)
 {
 	io_close_queue(ifq);
@@ -326,6 +378,9 @@ static void io_zcrx_ifq_free(struct io_zcrx_ifq *ifq)
 	kfree(ifq);
 }
 
+/**
+ * This function handles user request to register a zero-copy receive interface queue (ZCRX)
+ */
 int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 			  struct io_uring_zcrx_ifq_reg __user *arg)
 {
@@ -421,6 +476,9 @@ err:
 	return ret;
 }
 
+/**
+ * This function unregisters and frees the interface queue (ifq) for the given context
+ */
 void io_unregister_zcrx_ifqs(struct io_ring_ctx *ctx)
 {
 	struct io_zcrx_ifq *ifq = ctx->ifq;
@@ -434,6 +492,9 @@ void io_unregister_zcrx_ifqs(struct io_ring_ctx *ctx)
 	io_zcrx_ifq_free(ifq);
 }
 
+/**
+ * This function is an internal helper to get a free net_iov (IO vector) from the area's freelist
+ */
 static struct net_iov *__io_zcrx_get_free_niov(struct io_zcrx_area *area)
 {
 	unsigned niov_idx;
@@ -444,6 +505,9 @@ static struct net_iov *__io_zcrx_get_free_niov(struct io_zcrx_area *area)
 	return &area->nia.niovs[niov_idx];
 }
 
+/**
+ * This function returns a net_iov to the freelist of the area for reuse
+ */
 static void io_zcrx_return_niov_freelist(struct net_iov *niov)
 {
 	struct io_zcrx_area *area = io_zcrx_iov_to_area(niov);
@@ -453,6 +517,10 @@ static void io_zcrx_return_niov_freelist(struct net_iov *niov)
 	spin_unlock_bh(&area->freelist_lock);
 }
 
+/**
+ * This function returns a net_iov to either the page_pool or the freelist,
+ * depending on how it was allocated
+ */
 static void io_zcrx_return_niov(struct net_iov *niov)
 {
 	netmem_ref netmem = net_iov_to_netmem(niov);
@@ -465,6 +533,9 @@ static void io_zcrx_return_niov(struct net_iov *niov)
 	page_pool_put_unrefed_netmem(niov->pp, netmem, -1, false);
 }
 
+/**
+ * This function reclaims all buffers (net_iov s) that have outstanding user references
+ */
 static void io_zcrx_scrub(struct io_zcrx_ifq *ifq)
 {
 	struct io_zcrx_area *area = ifq->area;
@@ -486,6 +557,9 @@ static void io_zcrx_scrub(struct io_zcrx_ifq *ifq)
 	}
 }
 
+/**
+ * This function shuts down all ZCRX interface queues associated with the given io_uring context
+ */
 void io_shutdown_zcrx_ifqs(struct io_ring_ctx *ctx)
 {
 	lockdep_assert_held(&ctx->uring_lock);
