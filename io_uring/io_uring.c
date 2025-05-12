@@ -179,16 +179,25 @@ static const struct ctl_table kernel_io_uring_disabled_table[] = {
 };
 #endif
 
+/**
+ * Returns the difference between the cached CQ tail and the CQ head.
+ */
 static inline unsigned int __io_cqring_events(struct io_ring_ctx *ctx)
 {
 	return ctx->cached_cq_tail - READ_ONCE(ctx->rings->cq.head);
 }
 
+/**
+ * Returns the difference between the CQ tail and the CQ head.
+ */
 static inline unsigned int __io_cqring_events_user(struct io_ring_ctx *ctx)
 {
 	return READ_ONCE(ctx->rings->cq.tail) - READ_ONCE(ctx->rings->cq.head);
 }
 
+/**
+ * Iterates through linked requests and checks if any are inflight.
+ */
 static bool io_match_linked(struct io_kiocb *head)
 {
 	struct io_kiocb *req;
@@ -203,6 +212,9 @@ static bool io_match_linked(struct io_kiocb *head)
 /*
  * As io_match_task() but protected against racing with linked timeouts.
  * User must not hold timeout_lock.
+ */
+/**
+ * Matches requests while handling races with linked timeouts.
  */
 bool io_match_task_safe(struct io_kiocb *head, struct io_uring_task *tctx,
 			bool cancel_all)
@@ -227,17 +239,26 @@ bool io_match_task_safe(struct io_kiocb *head, struct io_uring_task *tctx,
 	return matched;
 }
 
+/**
+ * Marks the request as failed and sets the result code.
+ */
 static inline void req_fail_link_node(struct io_kiocb *req, int res)
 {
 	req_set_fail(req);
 	io_req_set_res(req, res, 0);
 }
 
+/**
+ * Adds the request to the free list for reuse.
+ */
 static inline void io_req_add_to_cache(struct io_kiocb *req, struct io_ring_ctx *ctx)
 {
 	wq_stack_add_head(&req->comp_list, &ctx->submit_state.free_list);
 }
 
+/**
+ * Completes the reference release for the io_ring_ctx.
+ */
 static __cold void io_ring_ctx_ref_free(struct percpu_ref *ref)
 {
 	struct io_ring_ctx *ctx = container_of(ref, struct io_ring_ctx, refs);
@@ -245,6 +266,9 @@ static __cold void io_ring_ctx_ref_free(struct percpu_ref *ref)
 	complete(&ctx->ref_comp);
 }
 
+/**
+ * Processes fallback requests that are queued for execution.
+ */
 static __cold void io_fallback_req_func(struct work_struct *work)
 {
 	struct io_ring_ctx *ctx = container_of(work, struct io_ring_ctx,
@@ -262,6 +286,9 @@ static __cold void io_fallback_req_func(struct work_struct *work)
 	percpu_ref_put(&ctx->refs);
 }
 
+/**
+ * Allocates and initializes a hash table for io operations.
+ */
 static int io_alloc_hash_table(struct io_hash_table *table, unsigned bits)
 {
 	unsigned int hash_buckets;
@@ -284,6 +311,9 @@ static int io_alloc_hash_table(struct io_hash_table *table, unsigned bits)
 	return 0;
 }
 
+/**
+ * Frees all allocation caches associated with the io_ring_ctx.
+ */
 static void io_free_alloc_caches(struct io_ring_ctx *ctx)
 {
 	io_alloc_cache_free(&ctx->apoll_cache, kfree);
@@ -295,6 +325,9 @@ static void io_free_alloc_caches(struct io_ring_ctx *ctx)
 	io_rsrc_cache_free(ctx);
 }
 
+/**
+ * Allocates and initializes an io_ring_ctx structure based on the provided parameters.
+ */
 static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 {
 	struct io_ring_ctx *ctx;
@@ -380,6 +413,9 @@ err:
 	return NULL;
 }
 
+/**
+ * Updates the overflow counter when the CQ is full.
+ */
 static void io_account_cq_overflow(struct io_ring_ctx *ctx)
 {
 	struct io_rings *r = ctx->rings;
@@ -388,6 +424,9 @@ static void io_account_cq_overflow(struct io_ring_ctx *ctx)
 	ctx->cq_extra--;
 }
 
+/**
+ * Determines if the request should be deferred based on its sequence.
+ */
 static bool req_need_defer(struct io_kiocb *req, u32 seq)
 {
 	if (unlikely(req->flags & REQ_F_IO_DRAIN)) {
@@ -399,6 +438,9 @@ static bool req_need_defer(struct io_kiocb *req, u32 seq)
 	return false;
 }
 
+/**
+ * Frees buffers, credentials, and other resources associated with the request.
+ */
 static void io_clean_op(struct io_kiocb *req)
 {
 	if (unlikely(req->flags & REQ_F_BUFFER_SELECTED))
@@ -426,6 +468,9 @@ static void io_clean_op(struct io_kiocb *req)
 	req->flags &= ~IO_REQ_CLEAN_FLAGS;
 }
 
+/**
+ * Marks the request as inflight and increments the inflight counter.
+ */
 static inline void io_req_track_inflight(struct io_kiocb *req)
 {
 	if (!(req->flags & REQ_F_INFLIGHT)) {
@@ -433,7 +478,9 @@ static inline void io_req_track_inflight(struct io_kiocb *req)
 		atomic_inc(&req->tctx->inflight_tracked);
 	}
 }
-
+/**
+ * preparing a linked timeout request in the io_uring subsystem. It ensures that the request is properly configured for handling timeouts in a chain of linked requests.
+ */
 static struct io_kiocb *__io_prep_linked_timeout(struct io_kiocb *req)
 {
 	if (WARN_ON_ONCE(!req->link))
@@ -448,24 +495,35 @@ static struct io_kiocb *__io_prep_linked_timeout(struct io_kiocb *req)
 	return req->link;
 }
 
+/**
+ * Sets up a linked timeout request and adjusts its flags.
+ */
 static inline struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 {
 	if (likely(!(req->flags & REQ_F_ARM_LTIMEOUT)))
 		return NULL;
 	return __io_prep_linked_timeout(req);
 }
-
+/**
+ * Prepares and queues a linked timeout request for execution.
+ */
 static noinline void __io_arm_ltimeout(struct io_kiocb *req)
 {
 	io_queue_linked_timeout(__io_prep_linked_timeout(req));
 }
 
+/**
+ * Queues a linked timeout request for execution.
+ */
 static inline void io_arm_ltimeout(struct io_kiocb *req)
 {
 	if (unlikely(req->flags & REQ_F_ARM_LTIMEOUT))
 		__io_arm_ltimeout(req);
 }
 
+/**
+ * Initializes the request for asynchronous work, including credentials and flags.
+ */
 static void io_prep_async_work(struct io_kiocb *req)
 {
 	const struct io_issue_def *def = &io_issue_defs[req->opcode];
@@ -499,6 +557,9 @@ static void io_prep_async_work(struct io_kiocb *req)
 	}
 }
 
+/**
+ * Prepares all linked requests for asynchronous execution.
+ */
 static void io_prep_async_link(struct io_kiocb *req)
 {
 	struct io_kiocb *cur;
@@ -516,6 +577,9 @@ static void io_prep_async_link(struct io_kiocb *req)
 	}
 }
 
+/**
+ * Queues the request for execution in the io-wq.
+ */
 static void io_queue_iowq(struct io_kiocb *req)
 {
 	struct io_kiocb *link = io_prep_linked_timeout(req);
@@ -547,17 +611,26 @@ static void io_queue_iowq(struct io_kiocb *req)
 		io_queue_linked_timeout(link);
 }
 
+/**
+ * Queues the request for execution in the io-wq using task work.
+ */
 static void io_req_queue_iowq_tw(struct io_kiocb *req, io_tw_token_t tw)
 {
 	io_queue_iowq(req);
 }
 
+/**
+ * Adds the request to the io-wq for execution.
+ */
 void io_req_queue_iowq(struct io_kiocb *req)
 {
 	req->io_task_work.func = io_req_queue_iowq_tw;
 	io_req_task_work_add(req);
 }
 
+/**
+ * Processes and queues deferred requests for execution.
+ */
 static __cold noinline void io_queue_deferred(struct io_ring_ctx *ctx)
 {
 	spin_lock(&ctx->completion_lock);
@@ -574,6 +647,9 @@ static __cold noinline void io_queue_deferred(struct io_ring_ctx *ctx)
 	spin_unlock(&ctx->completion_lock);
 }
 
+/**
+ * Handles flushing of CQ ring completions and deferred tasks.
+ */
 void __io_commit_cqring_flush(struct io_ring_ctx *ctx)
 {
 	if (ctx->poll_activated)
@@ -586,18 +662,27 @@ void __io_commit_cqring_flush(struct io_ring_ctx *ctx)
 		io_eventfd_flush_signal(ctx);
 }
 
+/**
+ * Acquires the CQ lock unless the ring is lockless.
+ */
 static inline void __io_cq_lock(struct io_ring_ctx *ctx)
 {
 	if (!ctx->lockless_cq)
 		spin_lock(&ctx->completion_lock);
 }
 
+/**
+ * Acquires the CQ lock for completion queue operations.
+ */
 static inline void io_cq_lock(struct io_ring_ctx *ctx)
 	__acquires(ctx->completion_lock)
 {
 	spin_lock(&ctx->completion_lock);
 }
 
+/**
+ * Unlocks the CQ and performs post-unlock tasks such as waking up waiters.
+ */
 static inline void __io_cq_unlock_post(struct io_ring_ctx *ctx)
 {
 	io_commit_cqring(ctx);
@@ -611,6 +696,9 @@ static inline void __io_cq_unlock_post(struct io_ring_ctx *ctx)
 	io_commit_cqring_flush(ctx);
 }
 
+/**
+ * Unlocks the CQ and performs post-unlock tasks such as waking up waiters.
+ */
 static void io_cq_unlock_post(struct io_ring_ctx *ctx)
 	__releases(ctx->completion_lock)
 {
@@ -620,6 +708,9 @@ static void io_cq_unlock_post(struct io_ring_ctx *ctx)
 	io_commit_cqring_flush(ctx);
 }
 
+/**
+ * Handles flushing of overflowed CQEs to the completion queue.
+ */
 static void __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool dying)
 {
 	size_t cqe_size = sizeof(struct io_uring_cqe);
@@ -672,12 +763,18 @@ static void __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool dying)
 	io_cq_unlock_post(ctx);
 }
 
+/**
+ * Ensures all overflowed CQEs are flushed and freed during context destruction.
+ */
 static void io_cqring_overflow_kill(struct io_ring_ctx *ctx)
 {
 	if (ctx->rings)
 		__io_cqring_overflow_flush(ctx, true);
 }
 
+/**
+ * Flushes overflowed CQEs when the context is active.
+ */
 static void io_cqring_do_overflow_flush(struct io_ring_ctx *ctx)
 {
 	mutex_lock(&ctx->uring_lock);
@@ -685,6 +782,10 @@ static void io_cqring_do_overflow_flush(struct io_ring_ctx *ctx)
 	mutex_unlock(&ctx->uring_lock);
 }
 
+/**
+ * Increments cached references for the current task or decrements inflight
+ * counters and releases the task structure for other tasks.
+ */
 /* must to be called somewhat shortly after putting a request */
 static inline void io_put_task(struct io_kiocb *req)
 {
@@ -700,6 +801,9 @@ static inline void io_put_task(struct io_kiocb *req)
 	}
 }
 
+/**
+ * Refilling the cached task references for the current task. It calculates the number of references to add, updates the inflight counter, and adjusts the task's usage count.
+ */
 void io_task_refs_refill(struct io_uring_task *tctx)
 {
 	unsigned int refill = -tctx->cached_refs + IO_TCTX_REFS_CACHE_NR;
@@ -709,6 +813,10 @@ void io_task_refs_refill(struct io_uring_task *tctx)
 	tctx->cached_refs += refill;
 }
 
+/**
+ * Drops cached references for the current task or decrements inflight
+ * counters and releases the task structure for other tasks.
+ */
 static __cold void io_uring_drop_tctx_refs(struct task_struct *task)
 {
 	struct io_uring_task *tctx = task->io_uring;
@@ -721,6 +829,10 @@ static __cold void io_uring_drop_tctx_refs(struct task_struct *task)
 	}
 }
 
+/**
+ * Handles overflowed CQEs when the completion queue is full.
+ * Returns true if the overflow entry was successfully added, false otherwise.
+ */
 static bool io_cqring_event_overflow(struct io_ring_ctx *ctx, u64 user_data,
 				     s32 res, u32 cflags, u64 extra1, u64 extra2)
 {
@@ -761,6 +873,9 @@ static bool io_cqring_event_overflow(struct io_ring_ctx *ctx, u64 user_data,
 	return true;
 }
 
+/**
+ * Handles overflow for a specific request's CQE.
+ */
 static void io_req_cqe_overflow(struct io_kiocb *req)
 {
 	io_cqring_event_overflow(req->ctx, req->cqe.user_data,
@@ -769,10 +884,9 @@ static void io_req_cqe_overflow(struct io_kiocb *req)
 	memset(&req->big_cqe, 0, sizeof(req->big_cqe));
 }
 
-/*
- * writes to the cq entry need to come after reading head; the
- * control dependency is enough as we're using WRITE_ONCE to
- * fill the cq entry
+/**
+ * Refills the cached CQE entries for the completion queue.
+ * Returns true if the refill was successful, false otherwise.
  */
 bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow)
 {
@@ -806,6 +920,10 @@ bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow)
 	return true;
 }
 
+/**
+ * io_fill_cqe_aux - Fill an auxiliary CQE.
+ * Fills a CQE in the auxiliary completion queue.
+ */
 static bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res,
 			      u32 cflags)
 {
@@ -834,6 +952,9 @@ static bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res,
 	return false;
 }
 
+/**
+ * Posts a CQE to the auxiliary completion queue.
+ */
 bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags)
 {
 	bool filled;
@@ -846,6 +967,9 @@ bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags
 	return filled;
 }
 
+/**
+ * Adding an auxiliary completion queue entry (CQE) to the io_uring context. If the CQE cannot be added directly to the completion queue, it handles the overflow by adding the entry to the overflow list. It also ensures that the completion queue flush state is updated.
+ */
 /*
  * Must be called from inline task_work so we now a flush will happen later,
  * and obviously with ctx->uring_lock held (tw always has that).
@@ -879,6 +1003,9 @@ bool io_req_post_cqe(struct io_kiocb *req, s32 res, u32 cflags)
 	return posted;
 }
 
+/**
+ * Completes a request and posts its CQE to the completion queue. Handles special cases like deferred completions and lockless completions, ensuring proper synchronization and cleanup.
+ */
 static void io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
@@ -917,6 +1044,9 @@ defer_complete:
 	req_ref_put(req);
 }
 
+/**
+ * Handles failure for a deferred request.It marks the request as failed, sets the result code, performs any operation-specific failure handling, and completes the deferred request.
+ */
 void io_req_defer_failed(struct io_kiocb *req, s32 res)
 	__must_hold(&ctx->uring_lock)
 {
@@ -931,6 +1061,9 @@ void io_req_defer_failed(struct io_kiocb *req, s32 res)
 	io_req_complete_defer(req);
 }
 
+/**
+ * Preinitializing an io_kiocb request structure with default values. It sets up the request's context, clears pointers, and zeroes out the completion queue entry (CQE) fields to ensure the request is in a clean state before use.
+ */
 /*
  * Don't initialise the fields below on every allocation, but do that in
  * advance and keep them valid across allocations.
@@ -952,6 +1085,9 @@ static void io_preinit_req(struct io_kiocb *req, struct io_ring_ctx *ctx)
  * handlers and io_issue_sqe() are done with it, e.g. inline completion path.
  * Because of that, io_alloc_req() should be called only under ->uring_lock
  * and with extra caution to not get a request that is still worked on.
+ */
+/**
+ * Refilling the request cache in the io_uring context. It attempts to allocate a batch of requests from the kernel memory cache and initializes them for reuse. If the batch allocation fails, it falls back to single allocation to ensure the cache is refilled.
  */
 __cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 	__must_hold(&ctx->uring_lock)
@@ -983,6 +1119,9 @@ __cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 	return true;
 }
 
+/**
+ * Frees a request and prepares it for reuse.
+ */
 __cold void io_free_req(struct io_kiocb *req)
 {
 	/* refs were already put, restore them for io_req_task_complete() */
@@ -993,6 +1132,9 @@ __cold void io_free_req(struct io_kiocb *req)
 	io_req_task_work_add(req);
 }
 
+/**
+ * It disarms the current request (e.g., cancels any associated timeouts) and ensures proper synchronization by acquiring and releasing the completion_lock.
+ */
 static void __io_req_find_next_prep(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
@@ -1002,6 +1144,9 @@ static void __io_req_find_next_prep(struct io_kiocb *req)
 	spin_unlock(&ctx->completion_lock);
 }
 
+/**
+ * Finds the next request in a linked chain of requests.
+ */
 static inline struct io_kiocb *io_req_find_next(struct io_kiocb *req)
 {
 	struct io_kiocb *nxt;
@@ -1019,6 +1164,11 @@ static inline struct io_kiocb *io_req_find_next(struct io_kiocb *req)
 	return nxt;
 }
 
+/**
+ * Flushes and releases the context, ensuring that all task work is completed
+ * and any pending requests are processed. It also handles the cleanup of
+ * resources associated with the context.
+ */
 static void ctx_flush_and_put(struct io_ring_ctx *ctx, io_tw_token_t tw)
 {
 	if (!ctx)
@@ -1070,6 +1220,9 @@ struct llist_node *io_handle_tw_list(struct llist_node *node,
 	return node;
 }
 
+/**
+ * Processes task work items that could not be handled immediately and schedules them for execution using delayed work. This ensures that pending tasks are eventually processed, even if they were deferred.
+ */
 static __cold void __io_fallback_tw(struct llist_node *node, bool sync)
 {
 	struct io_ring_ctx *last_ctx = NULL;
@@ -1096,7 +1249,9 @@ static __cold void __io_fallback_tw(struct llist_node *node, bool sync)
 		percpu_ref_put(&last_ctx->refs);
 	}
 }
-
+/**
+ * Retrieves all pending task work from the task's list and delegates it to the __io_fallback_tw function for processing. This ensures that deferred or pending tasks are eventually executed.
+ */
 static void io_fallback_tw(struct io_uring_task *tctx, bool sync)
 {
 	struct llist_node *node = llist_del_all(&tctx->task_list);
@@ -1104,6 +1259,10 @@ static void io_fallback_tw(struct io_uring_task *tctx, bool sync)
 	__io_fallback_tw(node, sync);
 }
 
+/**
+ * Callback function for processing task work.
+ * Invoked when task work is scheduled for the io_uring task context.
+ */
 struct llist_node *tctx_task_work_run(struct io_uring_task *tctx,
 				      unsigned int max_entries,
 				      unsigned int *count)
@@ -1129,6 +1288,10 @@ struct llist_node *tctx_task_work_run(struct io_uring_task *tctx,
 	return node;
 }
 
+/**
+ * Callback function for processing task work.
+ * Invoked when task work is scheduled for the io_uring task context.
+ */
 void tctx_task_work(struct callback_head *cb)
 {
 	struct io_uring_task *tctx;
@@ -1141,6 +1304,10 @@ void tctx_task_work(struct callback_head *cb)
 	WARN_ON_ONCE(ret);
 }
 
+/**
+ * Adds a request to the local work queue for deferred execution.
+ * Handles lazy wake-ups and ensures proper synchronization.
+ */
 static void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
@@ -1211,6 +1378,10 @@ static void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 	wake_up_state(ctx->submitter_task, TASK_INTERRUPTIBLE);
 }
 
+/**
+ * Adds a request to the normal task work queue for execution.
+ * Ensures task work is scheduled properly for the io_uring task context.
+ */
 static void io_req_normal_work_add(struct io_kiocb *req)
 {
 	struct io_uring_task *tctx = req->tctx;
@@ -1235,6 +1406,10 @@ static void io_req_normal_work_add(struct io_kiocb *req)
 	io_fallback_tw(tctx, false);
 }
 
+/**
+ * Adds a request to the appropriate task work queue based on the context flags.
+ * Supports both local and normal task work queues.
+ */
 void __io_req_task_work_add(struct io_kiocb *req, unsigned flags)
 {
 	if (req->ctx->flags & IORING_SETUP_DEFER_TASKRUN)
@@ -1243,345 +1418,403 @@ void __io_req_task_work_add(struct io_kiocb *req, unsigned flags)
 		io_req_normal_work_add(req);
 }
 
+/**
+ * Adds a request to the task work queue for remote execution.
+ * Ensures the request is added only if the DEFER_TASKRUN flag is set.
+ */
 void io_req_task_work_add_remote(struct io_kiocb *req, unsigned flags)
 {
-	if (WARN_ON_ONCE(!(req->ctx->flags & IORING_SETUP_DEFER_TASKRUN)))
-		return;
-	__io_req_task_work_add(req, flags);
+    if (WARN_ON_ONCE(!(req->ctx->flags & IORING_SETUP_DEFER_TASKRUN)))
+        return;
+    __io_req_task_work_add(req, flags);
 }
 
+/**
+ * Moves all task work from the local work list to the fallback list.
+ * Ensures that pending work is processed even if it cannot be handled locally.
+ */
 static void __cold io_move_task_work_from_local(struct io_ring_ctx *ctx)
 {
-	struct llist_node *node = llist_del_all(&ctx->work_llist);
+    struct llist_node *node = llist_del_all(&ctx->work_llist);
 
-	__io_fallback_tw(node, false);
-	node = llist_del_all(&ctx->retry_llist);
-	__io_fallback_tw(node, false);
+    __io_fallback_tw(node, false);
+    node = llist_del_all(&ctx->retry_llist);
+    __io_fallback_tw(node, false);
 }
 
+/**
+ * Determines whether local work should continue based on pending work
+ * and the number of completed events relative to the minimum required.
+ */
 static bool io_run_local_work_continue(struct io_ring_ctx *ctx, int events,
-				       int min_events)
+                       int min_events)
 {
-	if (!io_local_work_pending(ctx))
-		return false;
-	if (events < min_events)
-		return true;
-	if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
-		atomic_or(IORING_SQ_TASKRUN, &ctx->rings->sq_flags);
-	return false;
+    if (!io_local_work_pending(ctx))
+        return false;
+    if (events < min_events)
+        return true;
+    if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
+        atomic_or(IORING_SQ_TASKRUN, &ctx->rings->sq_flags);
+    return false;
 }
 
+/**
+ * Processes a batch of local task work items in a loop.
+ * Stops processing once the specified number of events is reached.
+ */
 static int __io_run_local_work_loop(struct llist_node **node,
-				    io_tw_token_t tw,
-				    int events)
+                    io_tw_token_t tw,
+                    int events)
 {
-	int ret = 0;
+    int ret = 0;
 
-	while (*node) {
-		struct llist_node *next = (*node)->next;
-		struct io_kiocb *req = container_of(*node, struct io_kiocb,
-						    io_task_work.node);
-		INDIRECT_CALL_2(req->io_task_work.func,
-				io_poll_task_func, io_req_rw_complete,
-				req, tw);
-		*node = next;
-		if (++ret >= events)
-			break;
-	}
+    while (*node) {
+        struct llist_node *next = (*node)->next;
+        struct io_kiocb *req = container_of(*node, struct io_kiocb,
+                            io_task_work.node);
+        INDIRECT_CALL_2(req->io_task_work.func,
+                io_poll_task_func, io_req_rw_complete,
+                req, tw);
+        *node = next;
+        if (++ret >= events)
+            break;
+    }
 
-	return ret;
+    return ret;
 }
 
+/**
+ * Executes local task work for a given io_ring_ctx.
+ * Handles retry logic and ensures all pending work is processed.
+ */
 static int __io_run_local_work(struct io_ring_ctx *ctx, io_tw_token_t tw,
-			       int min_events, int max_events)
+                   int min_events, int max_events)
 {
-	struct llist_node *node;
-	unsigned int loops = 0;
-	int ret = 0;
+    struct llist_node *node;
+    unsigned int loops = 0;
+    int ret = 0;
 
-	if (WARN_ON_ONCE(ctx->submitter_task != current))
-		return -EEXIST;
-	if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
-		atomic_andnot(IORING_SQ_TASKRUN, &ctx->rings->sq_flags);
+    if (WARN_ON_ONCE(ctx->submitter_task != current))
+        return -EEXIST;
+    if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
+        atomic_andnot(IORING_SQ_TASKRUN, &ctx->rings->sq_flags);
 again:
-	min_events -= ret;
-	ret = __io_run_local_work_loop(&ctx->retry_llist.first, tw, max_events);
-	if (ctx->retry_llist.first)
-		goto retry_done;
+    min_events -= ret;
+    ret = __io_run_local_work_loop(&ctx->retry_llist.first, tw, max_events);
+    if (ctx->retry_llist.first)
+        goto retry_done;
 
-	/*
-	 * llists are in reverse order, flip it back the right way before
-	 * running the pending items.
-	 */
-	node = llist_reverse_order(llist_del_all(&ctx->work_llist));
-	ret += __io_run_local_work_loop(&node, tw, max_events - ret);
-	ctx->retry_llist.first = node;
-	loops++;
+    /*
+     * llists are in reverse order, flip it back the right way before
+     * running the pending items.
+     */
+    node = llist_reverse_order(llist_del_all(&ctx->work_llist));
+    ret += __io_run_local_work_loop(&node, tw, max_events - ret);
+    ctx->retry_llist.first = node;
+    loops++;
 
-	if (io_run_local_work_continue(ctx, ret, min_events))
-		goto again;
+    if (io_run_local_work_continue(ctx, ret, min_events))
+        goto again;
 retry_done:
-	io_submit_flush_completions(ctx);
-	if (io_run_local_work_continue(ctx, ret, min_events))
-		goto again;
+    io_submit_flush_completions(ctx);
+    if (io_run_local_work_continue(ctx, ret, min_events))
+        goto again;
 
-	trace_io_uring_local_work_run(ctx, ret, loops);
-	return ret;
+    trace_io_uring_local_work_run(ctx, ret, loops);
+    return ret;
 }
 
+/**
+ * Executes local task work for a given io_ring_ctx while holding the lock.
+ * Ensures all pending work is processed up to the specified minimum events.
+ */
 static inline int io_run_local_work_locked(struct io_ring_ctx *ctx,
-					   int min_events)
+                                           int min_events)
 {
-	struct io_tw_state ts = {};
+    struct io_tw_state ts = {};
 
-	if (!io_local_work_pending(ctx))
-		return 0;
-	return __io_run_local_work(ctx, ts, min_events,
-					max(IO_LOCAL_TW_DEFAULT_MAX, min_events));
+    if (!io_local_work_pending(ctx))
+        return 0;
+    return __io_run_local_work(ctx, ts, min_events,
+                               max(IO_LOCAL_TW_DEFAULT_MAX, min_events));
 }
 
+/**
+ * Executes local task work for a given io_ring_ctx.
+ * Handles synchronization and ensures all pending work is processed.
+ */
 static int io_run_local_work(struct io_ring_ctx *ctx, int min_events,
-			     int max_events)
+                             int max_events)
 {
-	struct io_tw_state ts = {};
-	int ret;
+    struct io_tw_state ts = {};
+    int ret;
 
-	mutex_lock(&ctx->uring_lock);
-	ret = __io_run_local_work(ctx, ts, min_events, max_events);
-	mutex_unlock(&ctx->uring_lock);
-	return ret;
+    mutex_lock(&ctx->uring_lock);
+    ret = __io_run_local_work(ctx, ts, min_events, max_events);
+    mutex_unlock(&ctx->uring_lock);
+    return ret;
 }
 
+/**
+ * Cancels a task work request by marking it as failed.
+ * Ensures proper synchronization and cleanup.
+ */
 static void io_req_task_cancel(struct io_kiocb *req, io_tw_token_t tw)
 {
-	io_tw_lock(req->ctx, tw);
-	io_req_defer_failed(req, req->cqe.res);
+    io_tw_lock(req->ctx, tw);
+    io_req_defer_failed(req, req->cqe.res);
 }
 
+/**
+ * Submits a task work request for execution.
+ * Handles termination and asynchronous queuing if necessary.
+ */
 void io_req_task_submit(struct io_kiocb *req, io_tw_token_t tw)
 {
-	io_tw_lock(req->ctx, tw);
-	if (unlikely(io_should_terminate_tw()))
-		io_req_defer_failed(req, -EFAULT);
-	else if (req->flags & REQ_F_FORCE_ASYNC)
-		io_queue_iowq(req);
-	else
-		io_queue_sqe(req);
+    io_tw_lock(req->ctx, tw);
+    if (unlikely(io_should_terminate_tw()))
+        io_req_defer_failed(req, -EFAULT);
+    else if (req->flags & REQ_F_FORCE_ASYNC)
+        io_queue_iowq(req);
+    else
+        io_queue_sqe(req);
 }
 
+/**
+ * Queues a failed task work request for processing.
+ * Marks the request as failed and schedules it for cancellation.
+ */
 void io_req_task_queue_fail(struct io_kiocb *req, int ret)
 {
-	io_req_set_res(req, ret, 0);
-	req->io_task_work.func = io_req_task_cancel;
-	io_req_task_work_add(req);
+    io_req_set_res(req, ret, 0);
+    req->io_task_work.func = io_req_task_cancel;
+    io_req_task_work_add(req);
 }
 
+/**
+ * Queues a task work request for execution.
+ * Assigns the appropriate function and schedules the request.
+ */
 void io_req_task_queue(struct io_kiocb *req)
 {
-	req->io_task_work.func = io_req_task_submit;
-	io_req_task_work_add(req);
+    req->io_task_work.func = io_req_task_submit;
+    io_req_task_work_add(req);
 }
 
+/**
+ * Queues the next request in a linked chain for execution.
+ * Ensures proper handling of linked requests.
+ */
 void io_queue_next(struct io_kiocb *req)
 {
-	struct io_kiocb *nxt = io_req_find_next(req);
+    struct io_kiocb *nxt = io_req_find_next(req);
 
-	if (nxt)
-		io_req_task_queue(nxt);
+    if (nxt)
+        io_req_task_queue(nxt);
 }
 
+/**
+ * Frees a batch of requests and prepares them for reuse.
+ * Handles cleanup of resources and ensures proper synchronization.
+ */
 static void io_free_batch_list(struct io_ring_ctx *ctx,
-			       struct io_wq_work_node *node)
-	__must_hold(&ctx->uring_lock)
+                               struct io_wq_work_node *node)
+    __must_hold(&ctx->uring_lock)
 {
-	do {
-		struct io_kiocb *req = container_of(node, struct io_kiocb,
-						    comp_list);
+    do {
+        struct io_kiocb *req = container_of(node, struct io_kiocb,
+                                            comp_list);
 
-		if (unlikely(req->flags & IO_REQ_CLEAN_SLOW_FLAGS)) {
-			if (req->flags & REQ_F_REISSUE) {
-				node = req->comp_list.next;
-				req->flags &= ~REQ_F_REISSUE;
-				io_queue_iowq(req);
-				continue;
-			}
-			if (req->flags & REQ_F_REFCOUNT) {
-				node = req->comp_list.next;
-				if (!req_ref_put_and_test(req))
-					continue;
-			}
-			if ((req->flags & REQ_F_POLLED) && req->apoll) {
-				struct async_poll *apoll = req->apoll;
+        if (unlikely(req->flags & IO_REQ_CLEAN_SLOW_FLAGS)) {
+            if (req->flags & REQ_F_REISSUE) {
+                node = req->comp_list.next;
+                req->flags &= ~REQ_F_REISSUE;
+                io_queue_iowq(req);
+                continue;
+            }
+            if (req->flags & REQ_F_REFCOUNT) {
+                node = req->comp_list.next;
+                if (!req_ref_put_and_test(req))
+                    continue;
+            }
+            if ((req->flags & REQ_F_POLLED) && req->apoll) {
+                struct async_poll *apoll = req->apoll;
 
-				if (apoll->double_poll)
-					kfree(apoll->double_poll);
-				io_cache_free(&ctx->apoll_cache, apoll);
-				req->flags &= ~REQ_F_POLLED;
-			}
-			if (req->flags & IO_REQ_LINK_FLAGS)
-				io_queue_next(req);
-			if (unlikely(req->flags & IO_REQ_CLEAN_FLAGS))
-				io_clean_op(req);
-		}
-		io_put_file(req);
-		io_req_put_rsrc_nodes(req);
-		io_put_task(req);
+                if (apoll->double_poll)
+                    kfree(apoll->double_poll);
+                io_cache_free(&ctx->apoll_cache, apoll);
+                req->flags &= ~REQ_F_POLLED;
+            }
+            if (req->flags & IO_REQ_LINK_FLAGS)
+                io_queue_next(req);
+            if (unlikely(req->flags & IO_REQ_CLEAN_FLAGS))
+                io_clean_op(req);
+        }
+        io_put_file(req);
+        io_req_put_rsrc_nodes(req);
+        io_put_task(req);
 
-		node = req->comp_list.next;
-		io_req_add_to_cache(req, ctx);
-	} while (node);
+        node = req->comp_list.next;
+        io_req_add_to_cache(req, ctx);
+    } while (node);
 }
 
+/**
+ * Flushes all pending completions in the submission state.
+ * Ensures that requests are properly handled and CQEs are posted.
+ */
 void __io_submit_flush_completions(struct io_ring_ctx *ctx)
-	__must_hold(&ctx->uring_lock)
+    __must_hold(&ctx->uring_lock)
 {
-	struct io_submit_state *state = &ctx->submit_state;
-	struct io_wq_work_node *node;
+    struct io_submit_state *state = &ctx->submit_state;
+    struct io_wq_work_node *node;
 
-	__io_cq_lock(ctx);
-	__wq_list_for_each(node, &state->compl_reqs) {
-		struct io_kiocb *req = container_of(node, struct io_kiocb,
-					    comp_list);
+    __io_cq_lock(ctx);
+    __wq_list_for_each(node, &state->compl_reqs) {
+        struct io_kiocb *req = container_of(node, struct io_kiocb,
+                        comp_list);
 
-		/*
-		 * Requests marked with REQUEUE should not post a CQE, they
-		 * will go through the io-wq retry machinery and post one
-		 * later.
-		 */
-		if (!(req->flags & (REQ_F_CQE_SKIP | REQ_F_REISSUE)) &&
-		    unlikely(!io_fill_cqe_req(ctx, req))) {
-			if (ctx->lockless_cq) {
-				spin_lock(&ctx->completion_lock);
-				io_req_cqe_overflow(req);
-				spin_unlock(&ctx->completion_lock);
-			} else {
-				io_req_cqe_overflow(req);
-			}
-		}
-	}
-	__io_cq_unlock_post(ctx);
+        /*
+         * Requests marked with REQUEUE should not post a CQE, they
+         * will go through the io-wq retry machinery and post one
+         * later.
+         */
+        if (!(req->flags & (REQ_F_CQE_SKIP | REQ_F_REISSUE)) &&
+            unlikely(!io_fill_cqe_req(ctx, req))) {
+            if (ctx->lockless_cq) {
+                spin_lock(&ctx->completion_lock);
+                io_req_cqe_overflow(req);
+                spin_unlock(&ctx->completion_lock);
+            } else {
+                io_req_cqe_overflow(req);
+            }
+        }
+    }
+    __io_cq_unlock_post(ctx);
 
-	if (!wq_list_empty(&state->compl_reqs)) {
-		io_free_batch_list(ctx, state->compl_reqs.first);
-		INIT_WQ_LIST(&state->compl_reqs);
-	}
-	ctx->submit_state.cq_flush = false;
+    if (!wq_list_empty(&state->compl_reqs)) {
+        io_free_batch_list(ctx, state->compl_reqs.first);
+        INIT_WQ_LIST(&state->compl_reqs);
+    }
+    ctx->submit_state.cq_flush = false;
 }
 
+/**
+ * Returns the number of events currently in the completion queue.
+ * Ensures proper memory ordering with smp_rmb().
+ */
 static unsigned io_cqring_events(struct io_ring_ctx *ctx)
 {
-	/* See comment at the top of this file */
-	smp_rmb();
-	return __io_cqring_events(ctx);
+    /* See comment at the top of this file */
+    smp_rmb();
+    return __io_cqring_events(ctx);
 }
 
-/*
- * We can't just wait for polled events to come to us, we have to actively
- * find and complete them.
+/**
+ * Actively reaps polled events from the io_uring context.
+ * Ensures that all pending events are processed and completed.
  */
 static __cold void io_iopoll_try_reap_events(struct io_ring_ctx *ctx)
 {
-	if (!(ctx->flags & IORING_SETUP_IOPOLL))
-		return;
+    if (!(ctx->flags & IORING_SETUP_IOPOLL))
+        return;
 
-	mutex_lock(&ctx->uring_lock);
-	while (!wq_list_empty(&ctx->iopoll_list)) {
-		/* let it sleep and repeat later if can't complete a request */
-		if (io_do_iopoll(ctx, true) == 0)
-			break;
-		/*
-		 * Ensure we allow local-to-the-cpu processing to take place,
-		 * in this case we need to ensure that we reap all events.
-		 * Also let task_work, etc. to progress by releasing the mutex
-		 */
-		if (need_resched()) {
-			mutex_unlock(&ctx->uring_lock);
-			cond_resched();
-			mutex_lock(&ctx->uring_lock);
-		}
-	}
-	mutex_unlock(&ctx->uring_lock);
+    mutex_lock(&ctx->uring_lock);
+    while (!wq_list_empty(&ctx->iopoll_list)) {
+        /* Let it sleep and repeat later if it can't complete a request */
+        if (io_do_iopoll(ctx, true) == 0)
+            break;
+        /*
+         * Ensure we allow local-to-the-CPU processing to take place.
+         * Also let task_work, etc., progress by releasing the mutex.
+         */
+        if (need_resched()) {
+            mutex_unlock(&ctx->uring_lock);
+            cond_resched();
+            mutex_lock(&ctx->uring_lock);
+        }
+    }
+    mutex_unlock(&ctx->uring_lock);
 }
 
+/**
+ * Checks and processes polled events in the io_uring context.
+ * Ensures that the minimum number of events are completed.
+ */
 static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned int min_events)
 {
-	unsigned int nr_events = 0;
-	unsigned long check_cq;
+    unsigned int nr_events = 0;
+    unsigned long check_cq;
 
-	min_events = min(min_events, ctx->cq_entries);
+    min_events = min(min_events, ctx->cq_entries);
 
-	lockdep_assert_held(&ctx->uring_lock);
+    lockdep_assert_held(&ctx->uring_lock);
 
-	if (!io_allowed_run_tw(ctx))
-		return -EEXIST;
+    if (!io_allowed_run_tw(ctx))
+        return -EEXIST;
 
-	check_cq = READ_ONCE(ctx->check_cq);
-	if (unlikely(check_cq)) {
-		if (check_cq & BIT(IO_CHECK_CQ_OVERFLOW_BIT))
-			__io_cqring_overflow_flush(ctx, false);
-		/*
-		 * Similarly do not spin if we have not informed the user of any
-		 * dropped CQE.
-		 */
-		if (check_cq & BIT(IO_CHECK_CQ_DROPPED_BIT))
-			return -EBADR;
-	}
-	/*
-	 * Don't enter poll loop if we already have events pending.
-	 * If we do, we can potentially be spinning for commands that
-	 * already triggered a CQE (eg in error).
-	 */
-	if (io_cqring_events(ctx))
-		return 0;
+    check_cq = READ_ONCE(ctx->check_cq);
+    if (unlikely(check_cq)) {
+        if (check_cq & BIT(IO_CHECK_CQ_OVERFLOW_BIT))
+            __io_cqring_overflow_flush(ctx, false);
+        /*
+         * Similarly, do not spin if we have not informed the user of any
+         * dropped CQE.
+         */
+        if (check_cq & BIT(IO_CHECK_CQ_DROPPED_BIT))
+            return -EBADR;
+    }
+    /*
+     * Don't enter the poll loop if we already have events pending.
+     * If we do, we can potentially be spinning for commands that
+     * already triggered a CQE (e.g., in error).
+     */
+    if (io_cqring_events(ctx))
+        return 0;
 
-	do {
-		int ret = 0;
+    do {
+        int ret = 0;
 
-		/*
-		 * If a submit got punted to a workqueue, we can have the
-		 * application entering polling for a command before it gets
-		 * issued. That app will hold the uring_lock for the duration
-		 * of the poll right here, so we need to take a breather every
-		 * now and then to ensure that the issue has a chance to add
-		 * the poll to the issued list. Otherwise we can spin here
-		 * forever, while the workqueue is stuck trying to acquire the
-		 * very same mutex.
-		 */
-		if (wq_list_empty(&ctx->iopoll_list) ||
-		    io_task_work_pending(ctx)) {
-			u32 tail = ctx->cached_cq_tail;
+        /*
+         * If a submit got punted to a workqueue, we can have the
+         * application entering polling for a command before it gets
+         * issued. That app will hold the uring_lock for the duration
+         * of the poll right here, so we need to take a breather every
+         * now and then to ensure that the issue has a chance to add
+         * the poll to the issued list. Otherwise, we can spin here
+         * forever, while the workqueue is stuck trying to acquire the
+         * very same mutex.
+         */
+        if (wq_list_empty(&ctx->iopoll_list) ||
+            io_task_work_pending(ctx)) {
+            u32 tail = ctx->cached_cq_tail;
 
-			(void) io_run_local_work_locked(ctx, min_events);
+            (void) io_run_local_work_locked(ctx, min_events);
 
-			if (task_work_pending(current) ||
-			    wq_list_empty(&ctx->iopoll_list)) {
-				mutex_unlock(&ctx->uring_lock);
-				io_run_task_work();
-				mutex_lock(&ctx->uring_lock);
-			}
-			/* some requests don't go through iopoll_list */
-			if (tail != ctx->cached_cq_tail ||
-			    wq_list_empty(&ctx->iopoll_list))
-				break;
-		}
-		ret = io_do_iopoll(ctx, !min_events);
-		if (unlikely(ret < 0))
-			return ret;
+            if (task_work_pending(current) ||
+                wq_list_empty(&ctx->iopoll_list)) {
+                mutex_unlock(&ctx->uring_lock);
+                io_run_task_work();
+                mutex_lock(&ctx->uring_lock);
+            }
+            /* Some requests don't go through iopoll_list */
+            if (tail != ctx->cached_cq_tail ||
+                wq_list_empty(&ctx->iopoll_list))
+                break;
+        }
+        ret = io_do_iopoll(ctx, !min_events);
+        if (unlikely(ret < 0))
+            return ret;
 
-		if (task_sigpending(current))
-			return -EINTR;
-		if (need_resched())
-			break;
+        if (task_sigpending(current))
+            return -EINTR;
+        if (need_resched())
+            break;
 
-		nr_events += ret;
-	} while (nr_events < min_events);
+        nr_events += ret;
+    } while (nr_events < min_events);
 
-	return 0;
-}
-
-void io_req_task_complete(struct io_kiocb *req, io_tw_token_t tw)
-{
-	io_req_complete_defer(req);
+    return 0;
 }
 
 /*
@@ -1590,158 +1823,186 @@ void io_req_task_complete(struct io_kiocb *req, io_tw_token_t tw)
  * find it from a io_do_iopoll() thread before the issuer is done
  * accessing the kiocb cookie.
  */
+/**
+ * Adds a request to the io_poll_list for polling.
+ * Handles locking and ensures proper queueing based on device and file context.
+ */
 static void io_iopoll_req_issued(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_ring_ctx *ctx = req->ctx;
-	const bool needs_lock = issue_flags & IO_URING_F_UNLOCKED;
+    struct io_ring_ctx *ctx = req->ctx;
+    const bool needs_lock = issue_flags & IO_URING_F_UNLOCKED;
 
-	/* workqueue context doesn't hold uring_lock, grab it now */
-	if (unlikely(needs_lock))
-		mutex_lock(&ctx->uring_lock);
+    /* workqueue context doesn't hold uring_lock, grab it now */
+    if (unlikely(needs_lock))
+        mutex_lock(&ctx->uring_lock);
 
-	/*
-	 * Track whether we have multiple files in our lists. This will impact
-	 * how we do polling eventually, not spinning if we're on potentially
-	 * different devices.
-	 */
-	if (wq_list_empty(&ctx->iopoll_list)) {
-		ctx->poll_multi_queue = false;
-	} else if (!ctx->poll_multi_queue) {
-		struct io_kiocb *list_req;
+    /*
+     * Track whether we have multiple files in our lists. This will impact
+     * how we do polling eventually, not spinning if we're on potentially
+     * different devices.
+     */
+    if (wq_list_empty(&ctx->iopoll_list)) {
+        ctx->poll_multi_queue = false;
+    } else if (!ctx->poll_multi_queue) {
+        struct io_kiocb *list_req;
 
-		list_req = container_of(ctx->iopoll_list.first, struct io_kiocb,
-					comp_list);
-		if (list_req->file != req->file)
-			ctx->poll_multi_queue = true;
-	}
+        list_req = container_of(ctx->iopoll_list.first, struct io_kiocb,
+                                comp_list);
+        if (list_req->file != req->file)
+            ctx->poll_multi_queue = true;
+    }
 
-	/*
-	 * For fast devices, IO may have already completed. If it has, add
-	 * it to the front so we find it first.
-	 */
-	if (READ_ONCE(req->iopoll_completed))
-		wq_list_add_head(&req->comp_list, &ctx->iopoll_list);
-	else
-		wq_list_add_tail(&req->comp_list, &ctx->iopoll_list);
+    /*
+     * For fast devices, IO may have already completed. If it has, add
+     * it to the front so we find it first.
+     */
+    if (READ_ONCE(req->iopoll_completed))
+        wq_list_add_head(&req->comp_list, &ctx->iopoll_list);
+    else
+        wq_list_add_tail(&req->comp_list, &ctx->iopoll_list);
 
-	if (unlikely(needs_lock)) {
-		/*
-		 * If IORING_SETUP_SQPOLL is enabled, sqes are either handle
-		 * in sq thread task context or in io worker task context. If
-		 * current task context is sq thread, we don't need to check
-		 * whether should wake up sq thread.
-		 */
-		if ((ctx->flags & IORING_SETUP_SQPOLL) &&
-		    wq_has_sleeper(&ctx->sq_data->wait))
-			wake_up(&ctx->sq_data->wait);
+    if (unlikely(needs_lock)) {
+        /*
+         * If IORING_SETUP_SQPOLL is enabled, sqes are either handled
+         * in sq thread task context or in io worker task context. If
+         * current task context is sq thread, we don't need to check
+         * whether to wake up sq thread.
+         */
+        if ((ctx->flags & IORING_SETUP_SQPOLL) &&
+            wq_has_sleeper(&ctx->sq_data->wait))
+            wake_up(&ctx->sq_data->wait);
 
-		mutex_unlock(&ctx->uring_lock);
-	}
+        mutex_unlock(&ctx->uring_lock);
+    }
 }
 
+/**
+ * Retrieves the flags for a given file.
+ * Determines if the file supports non-blocking operations or is a regular file.
+ */
 io_req_flags_t io_file_get_flags(struct file *file)
 {
-	io_req_flags_t res = 0;
+    io_req_flags_t res = 0;
 
-	BUILD_BUG_ON(REQ_F_ISREG_BIT != REQ_F_SUPPORT_NOWAIT_BIT + 1);
+    BUILD_BUG_ON(REQ_F_ISREG_BIT != REQ_F_SUPPORT_NOWAIT_BIT + 1);
 
-	if (S_ISREG(file_inode(file)->i_mode))
-		res |= REQ_F_ISREG;
-	if ((file->f_flags & O_NONBLOCK) || (file->f_mode & FMODE_NOWAIT))
-		res |= REQ_F_SUPPORT_NOWAIT;
-	return res;
+    if (S_ISREG(file_inode(file)->i_mode))
+        res |= REQ_F_ISREG;
+    if ((file->f_flags & O_NONBLOCK) || (file->f_mode & FMODE_NOWAIT))
+        res |= REQ_F_SUPPORT_NOWAIT;
+    return res;
 }
 
+/**
+ * Retrieves the sequence number for a given request.
+ * Iterates through linked requests to calculate the sequence.
+ */
 static u32 io_get_sequence(struct io_kiocb *req)
 {
-	u32 seq = req->ctx->cached_sq_head;
-	struct io_kiocb *cur;
+    u32 seq = req->ctx->cached_sq_head;
+    struct io_kiocb *cur;
 
-	/* need original cached_sq_head, but it was increased for each req */
-	io_for_each_link(cur, req)
-		seq--;
-	return seq;
+    /* need original cached_sq_head, but it was increased for each req */
+    io_for_each_link(cur, req)
+        seq--;
+    return seq;
 }
 
+/**
+ * Handles draining of a request.
+ * Ensures proper synchronization and defers the request if necessary.
+ */
 static __cold void io_drain_req(struct io_kiocb *req)
-	__must_hold(&ctx->uring_lock)
+    __must_hold(&ctx->uring_lock)
 {
-	struct io_ring_ctx *ctx = req->ctx;
-	struct io_defer_entry *de;
-	int ret;
-	u32 seq = io_get_sequence(req);
+    struct io_ring_ctx *ctx = req->ctx;
+    struct io_defer_entry *de;
+    int ret;
+    u32 seq = io_get_sequence(req);
 
-	/* Still need defer if there is pending req in defer list. */
-	spin_lock(&ctx->completion_lock);
-	if (!req_need_defer(req, seq) && list_empty_careful(&ctx->defer_list)) {
-		spin_unlock(&ctx->completion_lock);
+    /* Still need defer if there is pending req in defer list. */
+    spin_lock(&ctx->completion_lock);
+    if (!req_need_defer(req, seq) && list_empty_careful(&ctx->defer_list)) {
+        spin_unlock(&ctx->completion_lock);
 queue:
-		ctx->drain_active = false;
-		io_req_task_queue(req);
-		return;
-	}
-	spin_unlock(&ctx->completion_lock);
+        ctx->drain_active = false;
+        io_req_task_queue(req);
+        return;
+    }
+    spin_unlock(&ctx->completion_lock);
 
-	io_prep_async_link(req);
-	de = kmalloc(sizeof(*de), GFP_KERNEL);
-	if (!de) {
-		ret = -ENOMEM;
-		io_req_defer_failed(req, ret);
-		return;
-	}
+    io_prep_async_link(req);
+    de = kmalloc(sizeof(*de), GFP_KERNEL);
+    if (!de) {
+        ret = -ENOMEM;
+        io_req_defer_failed(req, ret);
+        return;
+    }
 
-	spin_lock(&ctx->completion_lock);
-	if (!req_need_defer(req, seq) && list_empty(&ctx->defer_list)) {
-		spin_unlock(&ctx->completion_lock);
-		kfree(de);
-		goto queue;
-	}
+    spin_lock(&ctx->completion_lock);
+    if (!req_need_defer(req, seq) && list_empty(&ctx->defer_list)) {
+        spin_unlock(&ctx->completion_lock);
+        kfree(de);
+        goto queue;
+    }
 
-	trace_io_uring_defer(req);
-	de->req = req;
-	de->seq = seq;
-	list_add_tail(&de->list, &ctx->defer_list);
-	spin_unlock(&ctx->completion_lock);
+    trace_io_uring_defer(req);
+    de->req = req;
+    de->seq = seq;
+    list_add_tail(&de->list, &ctx->defer_list);
+    spin_unlock(&ctx->completion_lock);
 }
 
+/**
+ * Assigns a file to a request based on its flags and context.
+ * Returns true if the file is successfully assigned, false otherwise.
+ */
 static bool io_assign_file(struct io_kiocb *req, const struct io_issue_def *def,
-			   unsigned int issue_flags)
+                           unsigned int issue_flags)
 {
-	if (req->file || !def->needs_file)
-		return true;
+    if (req->file || !def->needs_file)
+        return true;
 
-	if (req->flags & REQ_F_FIXED_FILE)
-		req->file = io_file_get_fixed(req, req->cqe.fd, issue_flags);
-	else
-		req->file = io_file_get_normal(req, req->cqe.fd);
+    if (req->flags & REQ_F_FIXED_FILE)
+        req->file = io_file_get_fixed(req, req->cqe.fd, issue_flags);
+    else
+        req->file = io_file_get_normal(req, req->cqe.fd);
 
-	return !!req->file;
+    return !!req->file;
 }
 
+/**
+ * Issues a single SQE (Submission Queue Entry) for a request.
+ * Handles credentials, auditing, and the actual operation defined by the SQE.
+ */
 static inline int __io_issue_sqe(struct io_kiocb *req,
-				 unsigned int issue_flags,
-				 const struct io_issue_def *def)
+                                 unsigned int issue_flags,
+                                 const struct io_issue_def *def)
 {
-	const struct cred *creds = NULL;
-	int ret;
+    const struct cred *creds = NULL;
+    int ret;
 
-	if (unlikely((req->flags & REQ_F_CREDS) && req->creds != current_cred()))
-		creds = override_creds(req->creds);
+    if (unlikely((req->flags & REQ_F_CREDS) && req->creds != current_cred()))
+        creds = override_creds(req->creds);
 
-	if (!def->audit_skip)
-		audit_uring_entry(req->opcode);
+    if (!def->audit_skip)
+        audit_uring_entry(req->opcode);
 
-	ret = def->issue(req, issue_flags);
+    ret = def->issue(req, issue_flags);
 
-	if (!def->audit_skip)
-		audit_uring_exit(!ret, ret);
+    if (!def->audit_skip)
+        audit_uring_exit(!ret, ret);
 
-	if (creds)
-		revert_creds(creds);
+    if (creds)
+        revert_creds(creds);
 
-	return ret;
+    return ret;
 }
 
+/**
+ * Issues a single SQE (Submission Queue Entry) for a request.
+ * Handles file assignment, execution, and completion logic.
+ */
 static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 {
 	const struct io_issue_def *def = &io_issue_defs[req->opcode];
@@ -1772,6 +2033,10 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 	return ret;
 }
 
+/**
+ * Issues a poll operation for a request.
+ * Ensures proper locking and handles multishot completions.
+ */
 int io_poll_issue(struct io_kiocb *req, io_tw_token_t tw)
 {
 	const unsigned int issue_flags = IO_URING_F_NONBLOCK |
@@ -1791,6 +2056,10 @@ int io_poll_issue(struct io_kiocb *req, io_tw_token_t tw)
 	return ret;
 }
 
+/**
+ * Frees a work item and prepares the next linked request for execution.
+ * Handles reference counting and cleanup.
+ */
 struct io_wq_work *io_wq_free_work(struct io_wq_work *work)
 {
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
@@ -1804,6 +2073,10 @@ struct io_wq_work *io_wq_free_work(struct io_wq_work *work)
 	return nxt ? &nxt->work : NULL;
 }
 
+/**
+ * Submits a work item to the io-wq for execution.
+ * Handles file assignment, polling, and retries for asynchronous operations.
+ */
 void io_wq_submit_work(struct io_wq_work *work)
 {
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
@@ -1902,6 +2175,10 @@ fail:
 		io_req_task_queue_fail(req, ret);
 }
 
+/**
+ * Retrieves a fixed file descriptor from the resource table.
+ * Ensures proper locking and assigns the file to the request.
+ */
 inline struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 				      unsigned int issue_flags)
 {
@@ -1920,6 +2197,10 @@ inline struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 	return file;
 }
 
+/**
+ * Retrieves a normal file descriptor using fget().
+ * Tracks inflight requests for io_uring files.
+ */
 struct file *io_file_get_normal(struct io_kiocb *req, int fd)
 {
 	struct file *file = fget(fd);
@@ -1932,6 +2213,10 @@ struct file *io_file_get_normal(struct io_kiocb *req, int fd)
 	return file;
 }
 
+/**
+ * Handles asynchronous queuing of a request.
+ * Processes linked timeouts and handles polling states.
+ */
 static void io_queue_async(struct io_kiocb *req, int ret)
 	__must_hold(&req->ctx->uring_lock)
 {
@@ -1961,6 +2246,10 @@ static void io_queue_async(struct io_kiocb *req, int ret)
 		io_queue_linked_timeout(linked_timeout);
 }
 
+/**
+ * Queues a Submission Queue Entry (SQE) for execution.
+ * Handles non-blocking operations and punts to async if necessary.
+ */
 static inline void io_queue_sqe(struct io_kiocb *req)
 	__must_hold(&req->ctx->uring_lock)
 {
@@ -1976,6 +2265,10 @@ static inline void io_queue_sqe(struct io_kiocb *req)
 		io_queue_async(req, ret);
 }
 
+/**
+ * Handles fallback queuing for a Submission Queue Entry (SQE).
+ * Processes failures and handles draining logic.
+ */
 static void io_queue_sqe_fallback(struct io_kiocb *req)
 	__must_hold(&req->ctx->uring_lock)
 {
@@ -2018,6 +2311,10 @@ static inline bool io_check_restriction(struct io_ring_ctx *ctx,
 	return true;
 }
 
+/**
+ * Initializes draining for a request in the io_uring context.
+ * Ensures proper handling of linked requests during draining.
+ */
 static void io_init_drain(struct io_ring_ctx *ctx)
 {
 	struct io_kiocb *head = ctx->submit_state.link.head;
@@ -2036,6 +2333,10 @@ static void io_init_drain(struct io_ring_ctx *ctx)
 	}
 }
 
+/**
+ * Initializes a request and handles errors during setup.
+ * Ensures per-opcode data is cleared if initialization fails.
+ */
 static __cold int io_init_fail_req(struct io_kiocb *req, int err)
 {
 	/* ensure per-opcode data is cleared if we fail before prep */
@@ -2043,6 +2344,10 @@ static __cold int io_init_fail_req(struct io_kiocb *req, int err)
 	return err;
 }
 
+/**
+ * Initializes a request based on the provided SQE.
+ * Handles opcode validation, flags, and context-specific setup.
+ */
 static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		       const struct io_uring_sqe *sqe)
 	__must_hold(&ctx->uring_lock)
@@ -2140,6 +2445,10 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	return def->prep(req, sqe);
 }
 
+/**
+ * Handles failures during SQE submission initialization.
+ * Ensures proper handling of linked requests and fallback queuing.
+ */
 static __cold int io_submit_fail_init(const struct io_uring_sqe *sqe,
 				      struct io_kiocb *req, int ret)
 {
@@ -2177,6 +2486,10 @@ static __cold int io_submit_fail_init(const struct io_uring_sqe *sqe,
 	return 0;
 }
 
+/**
+ * Submits a single SQE for execution.
+ * Handles linked requests, fallback queuing, and normal queuing.
+ */
 static inline int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 			 const struct io_uring_sqe *sqe)
 	__must_hold(&ctx->uring_lock)
@@ -2226,6 +2539,10 @@ fallback:
 	return 0;
 }
 
+/**
+ * Finalizes the submission state and flushes local IO.
+ * Ensures all pending completions and links are processed.
+ */
 /*
  * Batched submission is done, ensure local IO is flushed out.
  */
@@ -2241,6 +2558,10 @@ static void io_submit_state_end(struct io_ring_ctx *ctx)
 		blk_finish_plug(&state->plug);
 }
 
+/**
+ * Initializes the submission state for a batch of IOs.
+ * Prepares the state for efficient submission handling.
+ */
 /*
  * Start submission side cache.
  */
@@ -2254,6 +2575,10 @@ static void io_submit_state_start(struct io_submit_state *state,
 	state->link.head = NULL;
 }
 
+/**
+ * Commits the SQ ring head after processing SQEs.
+ * Ensures proper memory ordering and updates the head pointer.
+ */
 static void io_commit_sqring(struct io_ring_ctx *ctx)
 {
 	struct io_rings *rings = ctx->rings;
@@ -2266,6 +2591,10 @@ static void io_commit_sqring(struct io_ring_ctx *ctx)
 	smp_store_release(&rings->sq.head, ctx->cached_sq_head);
 }
 
+/**
+ * Fetches an SQE from the ring if available.
+ * Ensures proper validation and stability of the SQE data.
+ */
 /*
  * Fetch an sqe, if one is available. Note this returns a pointer to memory
  * that is mapped by userspace. This means that care needs to be taken to
@@ -2310,6 +2639,10 @@ static bool io_get_sqe(struct io_ring_ctx *ctx, const struct io_uring_sqe **sqe)
 	return true;
 }
 
+/**
+ * Submits a batch of SQEs for execution.
+ * Handles allocation, initialization, and queuing of requests.
+ */
 int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 	__must_hold(&ctx->uring_lock)
 {
@@ -2360,6 +2693,10 @@ int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 	return ret;
 }
 
+/**
+ * Wake function for io_uring wait queues.
+ * Ensures the task is woken up if necessary and handles overflowed CQEs.
+ */
 static int io_wake_function(struct wait_queue_entry *curr, unsigned int mode,
 			    int wake_flags, void *key)
 {
@@ -2374,6 +2711,10 @@ static int io_wake_function(struct wait_queue_entry *curr, unsigned int mode,
 	return -1;
 }
 
+/**
+ * Runs task work for io_uring with signal handling.
+ * Returns 0 on success or -EINTR if a signal is pending.
+ */
 int io_run_task_work_sig(struct io_ring_ctx *ctx)
 {
 	if (io_local_work_pending(ctx)) {
@@ -2388,6 +2729,10 @@ int io_run_task_work_sig(struct io_ring_ctx *ctx)
 	return 0;
 }
 
+/**
+ * Checks if the current task has pending io_uring operations.
+ * Returns true if there are inflight operations, false otherwise.
+ */
 static bool current_pending_io(void)
 {
 	struct io_uring_task *tctx = current->io_uring;
@@ -2397,6 +2742,10 @@ static bool current_pending_io(void)
 	return percpu_counter_read_positive(&tctx->inflight);
 }
 
+/**
+ * Timer callback for io_uring CQ ring wakeup.
+ * Wakes up the task and stops the timer.
+ */
 static enum hrtimer_restart io_cqring_timer_wakeup(struct hrtimer *timer)
 {
 	struct io_wait_queue *iowq = container_of(timer, struct io_wait_queue, t);
@@ -2407,6 +2756,10 @@ static enum hrtimer_restart io_cqring_timer_wakeup(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+/**
+ * Timer callback for handling minimum timeout in io_uring.
+ * Switches to normal timeout if necessary or wakes up the task.
+ */
 /*
  * Doing min_timeout portion. If we saw any timeouts, events, or have work,
  * wake up. If not, and we have a normal timeout, switch to that and keep
@@ -2418,7 +2771,7 @@ static enum hrtimer_restart io_cqring_min_timer_wakeup(struct hrtimer *timer)
 	struct io_ring_ctx *ctx = iowq->ctx;
 
 	/* no general timeout, or shorter (or equal), we are done */
-	if (iowq->timeout == KTIME_MAX ||
+	if (iowq->min_timeout == 0 ||
 	    ktime_compare(iowq->min_timeout, iowq->timeout) >= 0)
 		goto out_wake;
 	/* work we may need to run, wake function will see if we need to wake */
@@ -2451,6 +2804,10 @@ out_wake:
 	return io_cqring_timer_wakeup(timer);
 }
 
+/**
+ * Schedules a timeout for io_uring CQ ring wait.
+ * Returns -ETIME if the timeout is hit, 0 otherwise.
+ */
 static int io_cqring_schedule_timeout(struct io_wait_queue *iowq,
 				      clockid_t clock_id, ktime_t start_time)
 {
@@ -2488,6 +2845,10 @@ struct ext_arg {
 	bool iowait;
 };
 
+/**
+ * Schedules a wait for io_uring CQ ring events.
+ * Handles timeouts, signals, and pending IO.
+ */
 static int __io_cqring_wait_schedule(struct io_ring_ctx *ctx,
 				     struct io_wait_queue *iowq,
 				     struct ext_arg *ext_arg,
@@ -2510,6 +2871,10 @@ static int __io_cqring_wait_schedule(struct io_ring_ctx *ctx,
 	return ret;
 }
 
+/**
+ * Wrapper for scheduling io_uring CQ ring wait.
+ * Returns > 0 if the caller should retry, -EINTR on signal, or 0 otherwise.
+ */
 /* If this returns > 0, the caller should retry */
 static inline int io_cqring_wait_schedule(struct io_ring_ctx *ctx,
 					  struct io_wait_queue *iowq,
@@ -2530,6 +2895,10 @@ static inline int io_cqring_wait_schedule(struct io_ring_ctx *ctx,
 	return __io_cqring_wait_schedule(ctx, iowq, ext_arg, start_time);
 }
 
+/**
+ * Waits for io_uring CQ ring events to become available.
+ * Handles timeouts, signals, and deferred task work.
+ */
 /*
  * Wait until events become available, if we don't already have some. The
  * application must reap them itself, as they reside on the shared cq ring.
@@ -2659,6 +3028,10 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events, u32 flags,
 	return READ_ONCE(rings->cq.head) == READ_ONCE(rings->cq.tail) ? ret : 0;
 }
 
+/**
+ * Frees the io_uring rings and associated regions.
+ * Resets the context's ring pointers to NULL.
+ */
 static void io_rings_free(struct io_ring_ctx *ctx)
 {
 	io_free_region(ctx, &ctx->sq_region);
@@ -2667,6 +3040,10 @@ static void io_rings_free(struct io_ring_ctx *ctx)
 	ctx->sq_sqes = NULL;
 }
 
+/**
+ * Calculates the size of the io_uring rings based on flags and entries.
+ * Returns the total size or SIZE_MAX on overflow.
+ */
 unsigned long rings_size(unsigned int flags, unsigned int sq_entries,
 			 unsigned int cq_entries, size_t *sq_offset)
 {
@@ -2704,6 +3081,10 @@ unsigned long rings_size(unsigned int flags, unsigned int sq_entries,
 	return off;
 }
 
+/**
+ * Frees cached requests in the io_uring context.
+ * Releases references and resets the cache.
+ */
 static void io_req_caches_free(struct io_ring_ctx *ctx)
 {
 	struct io_kiocb *req;
@@ -2721,6 +3102,10 @@ static void io_req_caches_free(struct io_ring_ctx *ctx)
 	mutex_unlock(&ctx->uring_lock);
 }
 
+/**
+ * Frees the io_uring context and associated resources.
+ * Handles cleanup of buffers, caches, and references.
+ */
 static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 {
 	io_sq_thread_finish(ctx);
@@ -2762,6 +3147,10 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	kfree(ctx);
 }
 
+/**
+ * Callback for activating poll wait queue.
+ * Ensures proper synchronization and wakes up all waiters.
+ */
 static __cold void io_activate_pollwq_cb(struct callback_head *cb)
 {
 	struct io_ring_ctx *ctx = container_of(cb, struct io_ring_ctx,
@@ -2779,6 +3168,10 @@ static __cold void io_activate_pollwq_cb(struct callback_head *cb)
 	percpu_ref_put(&ctx->refs);
 }
 
+/**
+ * Activates the poll wait queue for the io_uring context.
+ * Ensures synchronization with the submitter task.
+ */
 __cold void io_activate_pollwq(struct io_ring_ctx *ctx)
 {
 	spin_lock(&ctx->completion_lock);
@@ -2801,6 +3194,10 @@ out:
 	spin_unlock(&ctx->completion_lock);
 }
 
+/**
+ * Poll function for io_uring.
+ * Handles readiness checks for submission and completion queues.
+ */
 static __poll_t io_uring_poll(struct file *file, poll_table *wait)
 {
 	struct io_ring_ctx *ctx = file->private_data;
@@ -2843,6 +3240,10 @@ struct io_tctx_exit {
 	struct io_ring_ctx		*ctx;
 };
 
+/**
+ * Callback for exiting io_uring task context.
+ * Handles cleanup and ensures proper synchronization.
+ */
 static __cold void io_tctx_exit_cb(struct callback_head *cb)
 {
 	struct io_uring_task *tctx = current->io_uring;
@@ -2860,6 +3261,10 @@ static __cold void io_tctx_exit_cb(struct callback_head *cb)
 	complete(&work->completion);
 }
 
+/**
+ * Callback for canceling io_uring context requests.
+ * Matches requests based on the provided context.
+ */
 static __cold bool io_cancel_ctx_cb(struct io_wq_work *work, void *data)
 {
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
@@ -2867,6 +3272,10 @@ static __cold bool io_cancel_ctx_cb(struct io_wq_work *work, void *data)
 	return req->ctx == data;
 }
 
+/**
+ * Handles the exit work for io_uring context.
+ * Ensures all pending requests and resources are cleaned up.
+ */
 static __cold void io_ring_exit_work(struct work_struct *work)
 {
 	struct io_ring_ctx *ctx = container_of(work, struct io_ring_ctx, exit_work);
@@ -2968,6 +3377,10 @@ static __cold void io_ring_exit_work(struct work_struct *work)
 	io_ring_ctx_free(ctx);
 }
 
+/**
+ * Waits for all references to the io_ring_ctx to be released and initiates cleanup.
+ * Ensures proper synchronization and resource deallocation.
+ */
 static __cold void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 {
 	unsigned long index;
@@ -2991,6 +3404,10 @@ static __cold void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 	queue_work(iou_wq, &ctx->exit_work);
 }
 
+/**
+ * Releases the io_uring context associated with the file.
+ * Cleans up resources and initiates context destruction.
+ */
 static int io_uring_release(struct inode *inode, struct file *file)
 {
 	struct io_ring_ctx *ctx = file->private_data;
@@ -3005,6 +3422,10 @@ struct io_task_cancel {
 	bool all;
 };
 
+/**
+ * Callback for canceling a specific task's requests.
+ * Matches requests based on the provided task context and cancel flag.
+ */
 static bool io_cancel_task_cb(struct io_wq_work *work, void *data)
 {
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
@@ -3013,6 +3434,10 @@ static bool io_cancel_task_cb(struct io_wq_work *work, void *data)
 	return io_match_task_safe(req, cancel->tctx, cancel->all);
 }
 
+/**
+ * Cancels deferred requests in the io_uring context.
+ * Matches requests based on the provided task context and cancel flag.
+ */
 static __cold bool io_cancel_defer_files(struct io_ring_ctx *ctx,
 					 struct io_uring_task *tctx,
 					 bool cancel_all)
@@ -3040,6 +3465,10 @@ static __cold bool io_cancel_defer_files(struct io_ring_ctx *ctx,
 	return true;
 }
 
+/**
+ * Attempts to cancel requests in the io-wq for the io_uring context.
+ * Ensures proper synchronization and handles cancellation logic.
+ */
 static __cold bool io_uring_try_cancel_iowq(struct io_ring_ctx *ctx)
 {
 	struct io_tctx_node *node;
@@ -3064,6 +3493,10 @@ static __cold bool io_uring_try_cancel_iowq(struct io_ring_ctx *ctx)
 	return ret;
 }
 
+/**
+ * Attempts to cancel requests in the io_uring context.
+ * Handles deferred requests, polling, and task-specific cancellations.
+ */
 static __cold bool io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 						struct io_uring_task *tctx,
 						bool cancel_all,
@@ -3123,6 +3556,10 @@ static __cold bool io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 	return ret;
 }
 
+/**
+ * Returns the number of inflight requests for a given io_uring task.
+ * If `tracked` is true, only tracked inflight requests are counted.
+ */
 static s64 tctx_inflight(struct io_uring_task *tctx, bool tracked)
 {
 	if (tracked)
@@ -3130,6 +3567,10 @@ static s64 tctx_inflight(struct io_uring_task *tctx, bool tracked)
 	return percpu_counter_sum(&tctx->inflight);
 }
 
+/**
+ * Cancels all io_uring requests associated with the current task.
+ * Handles both SQPOLL thread cancellations and generic task cancellations.
+ */
 /*
  * Find any io_uring ctx that this task has registered or done IO on, and cancel
  * requests. @sqd should be not-null IFF it's an SQPOLL thread cancellation.
@@ -3219,12 +3660,20 @@ end_wait:
 	}
 }
 
+/**
+ * Cancels all io_uring requests for the current task.
+ * Handles both generic and SQPOLL-specific cancellations.
+ */
 void __io_uring_cancel(bool cancel_all)
 {
 	io_uring_unreg_ringfd();
 	io_uring_cancel_generic(cancel_all, NULL);
 }
 
+/**
+ * Retrieves an extended argument structure for io_uring operations.
+ * Validates the argument and ensures proper alignment and size.
+ */
 static struct io_uring_reg_wait *io_get_ext_arg_reg(struct io_ring_ctx *ctx,
 			const struct io_uring_getevents_arg __user *uarg)
 {
@@ -3244,6 +3693,10 @@ static struct io_uring_reg_wait *io_get_ext_arg_reg(struct io_ring_ctx *ctx,
 	return ctx->cq_wait_arg + offset;
 }
 
+/**
+ * Validates the extended argument structure for io_uring operations.
+ * Ensures the argument size and flags are correct.
+ */
 static int io_validate_ext_arg(struct io_ring_ctx *ctx, unsigned flags,
 			       const void __user *argp, size_t argsz)
 {
@@ -3260,6 +3713,10 @@ static int io_validate_ext_arg(struct io_ring_ctx *ctx, unsigned flags,
 	return 0;
 }
 
+/**
+ * Retrieves and validates extended arguments for io_uring operations.
+ * Handles both standard and registered extended arguments.
+ */
 static int io_get_ext_arg(struct io_ring_ctx *ctx, unsigned flags,
 			  const void __user *argp, struct ext_arg *ext_arg)
 {
@@ -3333,6 +3790,10 @@ uaccess_end:
 #endif
 }
 
+/**
+ * System call implementation for io_uring_enter.
+ * Handles submission, completion, and extended argument processing.
+ */
 SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		u32, min_complete, u32, flags, const void __user *, argp,
 		size_t, argsz)
@@ -3474,11 +3935,19 @@ static const struct file_operations io_uring_fops = {
 #endif
 };
 
+/**
+ * Checks if the file operations belong to io_uring.
+ * Returns true if the file is associated with io_uring, false otherwise.
+ */
 bool io_is_uring_fops(struct file *file)
 {
 	return file->f_op == &io_uring_fops;
 }
 
+/**
+ * Allocates and initializes submission and completion queues for io_uring.
+ * Handles memory allocation and mapping for the ring buffers.
+ */
 static __cold int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 					 struct io_uring_params *p)
 {
@@ -3538,6 +4007,10 @@ static __cold int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 	return 0;
 }
 
+/**
+ * Installs a file descriptor for the io_uring instance.
+ * Returns the allocated file descriptor or an error code.
+ */
 static int io_uring_install_fd(struct file *file)
 {
 	int fd;
@@ -3549,6 +4022,10 @@ static int io_uring_install_fd(struct file *file)
 	return fd;
 }
 
+/**
+ * Creates an anonymous file for the io_uring instance.
+ * This file is used by the application to mmap the SQ/CQ ring buffers.
+ */
 /*
  * Allocate an anonymous fd, this is what constitutes the application
  * visible backing of an io_uring instance. The application mmaps this
@@ -3561,6 +4038,10 @@ static struct file *io_uring_get_file(struct io_ring_ctx *ctx)
 					 O_RDWR | O_CLOEXEC, NULL);
 }
 
+/**
+ * Validates and sanitizes the io_uring parameters.
+ * Ensures that the provided flags and configurations are valid.
+ */
 static int io_uring_sanitise_params(struct io_uring_params *p)
 {
 	unsigned flags = p->flags;
@@ -3599,6 +4080,10 @@ static int io_uring_sanitise_params(struct io_uring_params *p)
 	return 0;
 }
 
+/**
+ * Fills the io_uring parameters with calculated values.
+ * Handles SQ/CQ entry sizes and offsets.
+ */
 int io_uring_fill_params(unsigned entries, struct io_uring_params *p)
 {
 	if (!entries)
@@ -3662,6 +4147,10 @@ int io_uring_fill_params(unsigned entries, struct io_uring_params *p)
 	return 0;
 }
 
+/**
+ * Creates an io_uring instance with the specified parameters.
+ * Allocates resources, initializes the context, and sets up the ring buffers.
+ */
 static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 				  struct io_uring_params __user *params)
 {
@@ -3797,6 +4286,10 @@ err_fput:
 	return ret;
 }
 
+/**
+ * Sets up an io_uring instance with the specified parameters.
+ * Validates the parameters and creates the io_uring context.
+ */
 /*
  * Sets up an aio uring context, and returns the fd. Applications asks for a
  * ring size, we return the actual sq/cq ring sizes (among other things) in the
@@ -3828,6 +4321,17 @@ static long io_uring_setup(u32 entries, struct io_uring_params __user *params)
 	return io_uring_create(entries, &p, params);
 }
 
+/**
+ * Checks if io_uring operations are allowed for the current task.
+ * Returns 0 if allowed, or an error code otherwise.
+ */
+/*
+ * Allow user copy in the per-command field, which starts after the
+ * file in io_kiocb and until the opcode field. The openat2 handling
+ * requires copying in user memory into the io_kiocb object in that
+ * range, and HARDENED_USERCOPY will complain if we haven't
+ * correctly annotated this range.
+ */
 static inline int io_uring_allowed(void)
 {
 	int disabled = READ_ONCE(sysctl_io_uring_disabled);
@@ -3850,6 +4354,10 @@ allowed_lsm:
 	return security_uring_allowed();
 }
 
+/**
+ * System call implementation for io_uring_setup.
+ * Validates permissions and sets up the io_uring instance.
+ */
 SYSCALL_DEFINE2(io_uring_setup, u32, entries,
 		struct io_uring_params __user *, params)
 {
@@ -3862,6 +4370,10 @@ SYSCALL_DEFINE2(io_uring_setup, u32, entries,
 	return io_uring_setup(entries, params);
 }
 
+/**
+ * Initializes the io_uring subsystem during kernel boot.
+ * Sets up caches, workqueues, and validates structure layouts.
+ */
 static int __init io_uring_init(void)
 {
 	struct kmem_cache_args kmem_args = {

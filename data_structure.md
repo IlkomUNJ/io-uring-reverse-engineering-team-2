@@ -90,6 +90,5 @@ The objective of this task is to document all internal data structures defined i
 |                |                    |                                                                                                                                                       | io_wq_cancel_tw_create    | io_uring/io-wq.c   | local variable                     |
 |                |                    |                                                                                                                                                       | io_wq_worker_affinity     | io_uring/io-wq.c   | function parameter                 |
 
-
 If the following row value in a column is missing, assume the value is the same with the previous row in the same column. 
 Continue until all data structures documented properly.
