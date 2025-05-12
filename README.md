@@ -15,6 +15,6 @@ Score is mainly calculated from individual contributions made to the commit. The
 
 ## Team Members
 - 1313623004 - Muhammad Axel Savero Fikri (Foxie735)
-- 1313623024 - Darren Dharmasaputra (Dardeka)
+- 1313623024 - Darren Dharmasaputra Kwariawan (Dardeka)
 - 1313623026 - Chelsea Vanianindya Putri (ChelseaVPutri)
 - 1313623027 - Muhammad Adani Faza (Acokii)
