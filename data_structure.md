@@ -1,6 +1,7 @@
 # Task 3: Data Structure Investigation
 The objective of this task is to document all internal data structures defined in io_uring. 
 
+
 | Structure name           | Defined in          | Attributes                                                                                                                                                                 | Caller Functions Source      | source caller       | usage                              |
 | ------------------------ | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ------------------- | ---------------------------------- |
 | io_fadvise               | io_uring/advise.c   | file, u32, u64                                                                                                                                                             | io_fadvise_force_async       | io_uring/advise.c   | function parameter                 |
@@ -320,7 +321,7 @@ The objective of this task is to document all internal data structures defined i
 |                          |                     |                                                                                                                                                                            | io_put_sq_data                   | io_uring/sqpoll.h    | function parameter                 |
 | io_statx                 | io_uring/statx.c    | __user, file, filename, int                                                                                                                                                | io_statx_prep                    | io_uring/statx.c     | local variable                     |
 |                          |                     |                                                                                                                                                                            | io_statx                         | io_uring/statx.c     | local variable                     |
-|                          |                     |                                                                                                                                                                            | io_statx_cleanup                 | io_uring/statx.c     | 
+|                          |                     |                                                                                                                                                                            | io_statx_cleanup                 | io_uring/statx.c     | local variable
 
 
 If the following row value in a column is missing, assume the value is the same with the previous row in the same column. 
