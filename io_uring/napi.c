@@ -18,6 +18,9 @@ struct io_napi_entry {
 	struct rcu_head		rcu;
 };
 
+/**
+ * Finds an io_napi_entry in the hash list by napi_id.
+ */
 static struct io_napi_entry *io_napi_hash_find(struct hlist_head *hash_list,
 					       unsigned int napi_id)
 {
@@ -32,12 +35,18 @@ static struct io_napi_entry *io_napi_hash_find(struct hlist_head *hash_list,
 	return NULL;
 }
 
+/**
+ * Converts a net time value to ktime.
+ */
 static inline ktime_t net_to_ktime(unsigned long t)
 {
 	/* napi approximating usecs, reverse busy_loop_current_time */
 	return ns_to_ktime(t << 10);
 }
 
+/**
+ * Adds a napi_id to the io_ring_ctx.
+ */
 int __io_napi_add_id(struct io_ring_ctx *ctx, unsigned int napi_id)
 {
 	struct hlist_head *hash_list;
@@ -81,6 +90,9 @@ int __io_napi_add_id(struct io_ring_ctx *ctx, unsigned int napi_id)
 	return 0;
 }
 
+/**
+ * Deletes a napi_id from the io_ring_ctx.
+ */
 static int __io_napi_del_id(struct io_ring_ctx *ctx, unsigned int napi_id)
 {
 	struct hlist_head *hash_list;
@@ -102,6 +114,9 @@ static int __io_napi_del_id(struct io_ring_ctx *ctx, unsigned int napi_id)
 	return 0;
 }
 
+/**
+ * Removes stale napi entries from the io_ring_ctx.
+ */
 static void __io_napi_remove_stale(struct io_ring_ctx *ctx)
 {
 	struct io_napi_entry *e;
@@ -122,12 +137,18 @@ static void __io_napi_remove_stale(struct io_ring_ctx *ctx)
 	}
 }
 
+/**
+ * Removes stale napi entries if the is_stale flag is set.
+ */
 static inline void io_napi_remove_stale(struct io_ring_ctx *ctx, bool is_stale)
 {
 	if (is_stale)
 		__io_napi_remove_stale(ctx);
 }
 
+/**
+ * Checks if the busy loop timeout has been reached.
+ */
 static inline bool io_napi_busy_loop_timeout(ktime_t start_time,
 					     ktime_t bp)
 {
@@ -141,6 +162,9 @@ static inline bool io_napi_busy_loop_timeout(ktime_t start_time,
 	return true;
 }
 
+/**
+ * Determines if the busy loop should end.
+ */
 static bool io_napi_busy_loop_should_end(void *data,
 					 unsigned long start_time)
 {
@@ -157,6 +181,9 @@ static bool io_napi_busy_loop_should_end(void *data,
 	return false;
 }
 
+/**
+ * Executes a static busy loop for napi tracking.
+ */
 /*
  * never report stale entries
  */
@@ -172,6 +199,9 @@ static bool static_tracking_do_busy_loop(struct io_ring_ctx *ctx,
 	return false;
 }
 
+/**
+ * Executes a dynamic busy loop for napi tracking.
+ */
 static bool
 dynamic_tracking_do_busy_loop(struct io_ring_ctx *ctx,
 			      bool (*loop_end)(void *, unsigned long),
@@ -191,6 +221,9 @@ dynamic_tracking_do_busy_loop(struct io_ring_ctx *ctx,
 	return is_stale;
 }
 
+/**
+ * Executes the appropriate busy loop based on tracking mode.
+ */
 static inline bool
 __io_napi_do_busy_loop(struct io_ring_ctx *ctx,
 		       bool (*loop_end)(void *, unsigned long),
@@ -201,6 +234,9 @@ __io_napi_do_busy_loop(struct io_ring_ctx *ctx,
 	return dynamic_tracking_do_busy_loop(ctx, loop_end, loop_end_arg);
 }
 
+/**
+ * Executes a blocking busy loop for napi.
+ */
 static void io_napi_blocking_busy_loop(struct io_ring_ctx *ctx,
 				       struct io_wait_queue *iowq)
 {
@@ -263,6 +299,9 @@ void io_napi_free(struct io_ring_ctx *ctx)
 	INIT_LIST_HEAD_RCU(&ctx->napi_list);
 }
 
+/**
+ * Registers napi settings in the io_ring_ctx.
+ */
 static int io_napi_register_napi(struct io_ring_ctx *ctx,
 				 struct io_uring_napi *napi)
 {
