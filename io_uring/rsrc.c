@@ -35,6 +35,10 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 
 #define IO_CACHED_BVECS_SEGS	32
 
+/**
+ * Accounting memory for pinned pages for a user.
+ * Returns 0 on success, -ENOMEM if limit exceeded.
+ */
 int __io_account_mem(struct user_struct *user, unsigned long nr_pages)
 {
 	unsigned long page_limit, cur_pages, new_pages;
@@ -55,6 +59,7 @@ int __io_account_mem(struct user_struct *user, unsigned long nr_pages)
 	return 0;
 }
 
+// Unaccounting memory for pinned pages in the context
 static void io_unaccount_mem(struct io_ring_ctx *ctx, unsigned long nr_pages)
 {
 	if (ctx->user)
@@ -64,6 +69,10 @@ static void io_unaccount_mem(struct io_ring_ctx *ctx, unsigned long nr_pages)
 		atomic64_sub(nr_pages, &ctx->mm_account->pinned_vm);
 }
 
+/**
+ * Accounting memory for pinned pages in the context.
+ * Returns 0 on success, negative error code on failure.
+ */
 static int io_account_mem(struct io_ring_ctx *ctx, unsigned long nr_pages)
 {
 	int ret;
@@ -80,6 +89,10 @@ static int io_account_mem(struct io_ring_ctx *ctx, unsigned long nr_pages)
 	return 0;
 }
 
+/**
+ * Validate a user-provided iovec for buffer registration.
+ * Returns 0 on success, error code on failure.
+ */
 int io_buffer_validate(struct iovec *iov)
 {
 	unsigned long tmp, acct_len = iov->iov_len + (PAGE_SIZE - 1);
@@ -104,6 +117,7 @@ int io_buffer_validate(struct iovec *iov)
 	return 0;
 }
 
+// Release an user buffer
 static void io_release_ubuf(void *priv)
 {
 	struct io_mapped_ubuf *imu = priv;
@@ -113,6 +127,10 @@ static void io_release_ubuf(void *priv)
 		unpin_user_page(imu->bvec[i].bv_page);
 }
 
+/**
+ * Allocate a mapped user buffer structure.
+ * Returns pointer to io_mapped_ubuf or NULL on failure.
+ */
 static struct io_mapped_ubuf *io_alloc_imu(struct io_ring_ctx *ctx,
 					   int nr_bvecs)
 {
@@ -122,6 +140,7 @@ static struct io_mapped_ubuf *io_alloc_imu(struct io_ring_ctx *ctx,
 			GFP_KERNEL);
 }
 
+// Free a mapped user buffer structure.
 static void io_free_imu(struct io_ring_ctx *ctx, struct io_mapped_ubuf *imu)
 {
 	if (imu->nr_bvecs <= IO_CACHED_BVECS_SEGS)
@@ -130,6 +149,7 @@ static void io_free_imu(struct io_ring_ctx *ctx, struct io_mapped_ubuf *imu)
 		kvfree(imu);
 }
 
+// Unmap and release a mapped user buffer
 static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf *imu)
 {
 	if (!refcount_dec_and_test(&imu->refs))
@@ -141,6 +161,10 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf *imu)
 	io_free_imu(ctx, imu);
 }
 
+/**
+ * Allocate a resource node for the given type.
+ * Returns pointer to io_rsrc_node or NULL on failure.
+ */
 struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx, int type)
 {
 	struct io_rsrc_node *node;
@@ -155,6 +179,10 @@ struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx, int type)
 	return node;
 }
 
+/**
+ * Initialize resource node and buffer caches for the context.
+ * Returns true on success, false on failure.
+ */
 bool io_rsrc_cache_init(struct io_ring_ctx *ctx)
 {
 	const int imu_cache_size = struct_size_t(struct io_mapped_ubuf, bvec,
