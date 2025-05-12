@@ -33,17 +33,27 @@ struct io_futex_data {
 
 #define IO_FUTEX_ALLOC_CACHE_MAX	32
 
+/**
+ * Sets up the allocation cache used for futex data structures in the given context.
+ * Returns true if allocation fails, false otherwise.
+ */
 bool io_futex_cache_init(struct io_ring_ctx *ctx)
 {
 	return io_alloc_cache_init(&ctx->futex_cache, IO_FUTEX_ALLOC_CACHE_MAX,
 				sizeof(struct io_futex_data), 0);
 }
 
+/**
+ * Frees all cached futex data structures in the context's allocation cache.
+ */
 void io_futex_cache_free(struct io_ring_ctx *ctx)
 {
 	io_alloc_cache_free(&ctx->futex_cache, kfree);
 }
 
+/**
+ * Removes the request from the futex hash list and completes the request.
+ */
 static void __io_futex_complete(struct io_kiocb *req, io_tw_token_t tw)
 {
 	req->async_data = NULL;
@@ -51,6 +61,9 @@ static void __io_futex_complete(struct io_kiocb *req, io_tw_token_t tw)
 	io_req_task_complete(req, tw);
 }
 
+/**
+ * Frees the async data associated with the request and completes it.
+ */
 static void io_futex_complete(struct io_kiocb *req, io_tw_token_t tw)
 {
 	struct io_ring_ctx *ctx = req->ctx;
@@ -60,6 +73,9 @@ static void io_futex_complete(struct io_kiocb *req, io_tw_token_t tw)
 	__io_futex_complete(req, tw);
 }
 
+/**
+ * Handles completion for futexv requests, including unqueuing and freeing resources.
+ */
 static void io_futexv_complete(struct io_kiocb *req, io_tw_token_t tw)
 {
 	struct io_futex *iof = io_kiocb_to_cmd(req, struct io_futex);
@@ -80,6 +96,10 @@ static void io_futexv_complete(struct io_kiocb *req, io_tw_token_t tw)
 	__io_futex_complete(req, tw);
 }
 
+/**
+ * Tries to set the ownership bit for the futexv operation.
+ * Returns true if successful, false otherwise.
+ */
 static bool io_futexv_claim(struct io_futex *iof)
 {
 	if (test_bit(0, &iof->futexv_owned) ||
@@ -88,6 +108,10 @@ static bool io_futexv_claim(struct io_futex *iof)
 	return true;
 }
 
+/**
+ * Cancels the futex or futexv request, unqueues if necessary, and sets result.
+ * Returns true if cancelled, false otherwise.
+ */
 static bool __io_futex_cancel(struct io_kiocb *req)
 {
 	/* futex wake already done or in progress */
@@ -111,18 +135,30 @@ static bool __io_futex_cancel(struct io_kiocb *req)
 	return true;
 }
 
+/**
+ * Cancels futex requests matching the given criteria from the futex list.
+ * Returns the number of cancelled requests or a negative error code.
+ */
 int io_futex_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 		    unsigned int issue_flags)
 {
 	return io_cancel_remove(ctx, cd, issue_flags, &ctx->futex_list, __io_futex_cancel);
 }
 
+/**
+ * Removes all futex requests for the given task context from the futex list.
+ * Returns true if any requests were removed.
+ */
 bool io_futex_remove_all(struct io_ring_ctx *ctx, struct io_uring_task *tctx,
 			 bool cancel_all)
 {
 	return io_cancel_remove_all(ctx, tctx, &ctx->futex_list, cancel_all, __io_futex_cancel);
 }
 
+/**
+ * Extracts futex parameters from the SQE and stores them in the io_futex structure.
+ * Validates input fields and flags. Returns 0 on success or a negative error code.
+ */
 int io_futex_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_futex *iof = io_kiocb_to_cmd(req, struct io_futex);
@@ -151,6 +187,9 @@ int io_futex_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+/**
+ * Called when a futexv vector operation is woken. Completes the request if successful.
+ */
 static void io_futex_wakev_fn(struct wake_q_head *wake_q, struct futex_q *q)
 {
 	struct io_kiocb *req = q->wake_data;
@@ -166,6 +205,10 @@ static void io_futex_wakev_fn(struct wake_q_head *wake_q, struct futex_q *q)
 	io_req_task_work_add(req);
 }
 
+/**
+ * Extracts futexv parameters from the SQE and allocates the futex vector.
+ * Validates input fields and sets up async data. Returns 0 on success or a negative error code.
+ */
 int io_futexv_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_futex *iof = io_kiocb_to_cmd(req, struct io_futex);
@@ -200,6 +243,9 @@ int io_futexv_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+/**
+ * Called when a single futex operation is woken. Completes the request if successful.
+ */
 static void io_futex_wake_fn(struct wake_q_head *wake_q, struct futex_q *q)
 {
 	struct io_futex_data *ifd = container_of(q, struct io_futex_data, q);
@@ -213,6 +259,10 @@ static void io_futex_wake_fn(struct wake_q_head *wake_q, struct futex_q *q)
 	io_req_task_work_add(req);
 }
 
+/**
+ * Sets up and waits on multiple futexes as described by the futex vector.
+ * Handles completion and error cases. Returns IOU_ISSUE_SKIP_COMPLETE or IOU_OK.
+ */
 int io_futexv_wait(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_futex *iof = io_kiocb_to_cmd(req, struct io_futex);
@@ -268,6 +318,10 @@ int io_futexv_wait(struct io_kiocb *req, unsigned int issue_flags)
 	return IOU_ISSUE_SKIP_COMPLETE;
 }
 
+/**
+ * Sets up and waits on a single futex as described by the io_futex structure.
+ * Handles completion and error cases. Returns IOU_ISSUE_SKIP_COMPLETE or IOU_OK.
+ */
 int io_futex_wait(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_futex *iof = io_kiocb_to_cmd(req, struct io_futex);
@@ -314,6 +368,10 @@ done:
 	return IOU_OK;
 }
 
+/**
+ * Wakes up futex waiters as described by the io_futex structure.
+ * Sets the result in the request structure. Returns IOU_OK.
+ */
 int io_futex_wake(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_futex *iof = io_kiocb_to_cmd(req, struct io_futex);

@@ -12,6 +12,9 @@
 #include "io_uring.h"
 #include "tctx.h"
 
+/**
+ * Initializes a new io-wq (workqueue) for the given context and task
+ */
 static struct io_wq *io_init_wq_offload(struct io_ring_ctx *ctx,
 					struct task_struct *task)
 {
@@ -44,6 +47,9 @@ static struct io_wq *io_init_wq_offload(struct io_ring_ctx *ctx,
 	return io_wq_create(concurrency, &data);
 }
 
+/**
+ * Frees the io_uring task context from a task
+ */
 void __io_uring_free(struct task_struct *tsk)
 {
 	struct io_uring_task *tctx = tsk->io_uring;
@@ -68,6 +74,9 @@ void __io_uring_free(struct task_struct *tsk)
 	tsk->io_uring = NULL;
 }
 
+/**
+ * Alloocates and initializes a new io_uring_task context for the given task
+ */
 __cold int io_uring_alloc_task_context(struct task_struct *task,
 				       struct io_ring_ctx *ctx)
 {
@@ -103,6 +112,9 @@ __cold int io_uring_alloc_task_context(struct task_struct *task,
 	return 0;
 }
 
+/**
+ * Links a task to an io_ring_task by adding a node (io_tctx_node) to the task context
+ */
 int __io_uring_add_tctx_node(struct io_ring_ctx *ctx)
 {
 	struct io_uring_task *tctx = current->io_uring;
@@ -145,6 +157,9 @@ int __io_uring_add_tctx_node(struct io_ring_ctx *ctx)
 	return 0;
 }
 
+/**
+ * Wrapper around _io_uring_add_tctx_node() with additional check for IORIN_SETUP_SINGLE_ISSUER
+ */
 int __io_uring_add_tctx_node_from_submit(struct io_ring_ctx *ctx)
 {
 	int ret;
@@ -187,6 +202,9 @@ __cold void io_uring_del_tctx_node(unsigned long index)
 	kfree(node);
 }
 
+/**
+ * Cleans up all mappings and workqueues associated with a task context
+ */
 __cold void io_uring_clean_tctx(struct io_uring_task *tctx)
 {
 	struct io_wq *wq = tctx->io_wq;
@@ -207,6 +225,9 @@ __cold void io_uring_clean_tctx(struct io_uring_task *tctx)
 	}
 }
 
+/**
+ * Unregisters all ring file descriptors associated with the current task
+ */
 void io_uring_unreg_ringfd(void)
 {
 	struct io_uring_task *tctx = current->io_uring;
@@ -220,6 +241,9 @@ void io_uring_unreg_ringfd(void)
 	}
 }
 
+/**
+ * Registers a file pointer to a slot in the registered_rings array
+ */
 int io_ring_add_registered_file(struct io_uring_task *tctx, struct file *file,
 				     int start, int end)
 {
@@ -235,6 +259,10 @@ int io_ring_add_registered_file(struct io_uring_task *tctx, struct file *file,
 	return -EBUSY;
 }
 
+/**
+ * This function was same as the io_ring_add_registered_file(), 
+ * but this function starts with a file descriptor instead of a struct file *
+ */
 static int io_ring_add_registered_fd(struct io_uring_task *tctx, int fd,
 				     int start, int end)
 {
@@ -321,6 +349,9 @@ int io_ringfd_register(struct io_ring_ctx *ctx, void __user *__arg,
 	return i ? i : ret;
 }
 
+/**
+ * Unregister the previously registered ring file descriptors
+ */
 int io_ringfd_unregister(struct io_ring_ctx *ctx, void __user *__arg,
 			 unsigned nr_args)
 {
