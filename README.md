@@ -14,5 +14,7 @@ Score is mainly calculated from individual contributions made to the commit. The
 - [Task 4](/function_documentation.md)
 
 ## Team Members
-- Member A
-- Member B
+- 1313623004 - Muhammad Axel Savero Fikri (Foxie735)
+- 1313623024 - Darren Dharmasaputra (Dardeka)
+- 1313623026 - Chelsea Vanianindya Putri (ChelseaVPutri)
+- 1313623027 - Muhammad Adani Faza (Acokii)
