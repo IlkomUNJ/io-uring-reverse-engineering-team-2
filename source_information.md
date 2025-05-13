@@ -1962,50 +1962,51 @@ function bellow not available at version v6.14
     - unsigned issue_flags: issue-specific flags
     - unsigned int *len: pointer to receive the length of the received data
   - return value: number of bytes received or a negative error code
+
 <!-- #else -->
-	- static inline int io_register_zcrx_ifq(struct io_ring_ctx *ctx, struct io_uring_zcrx_ifq_reg __user *arg)
-	  - purpose: provides a stub implementation that returns -EOPNOTSUPP when ZCRX support is not compiled into the kernel.
-	  - parameters:
-  		- struct io_ring_ctx *ctx: the io_uring context associated with the request.
-  		- struct io_uring_zcrx_ifq_reg __user *arg: user-space pointer containing ZCRX registration parameters.
-	  - return value: always returns -EOPNOTSUPP to indicate the operation is not supported.
+- static inline int io_register_zcrx_ifq(struct io_ring_ctx *ctx, struct io_uring_zcrx_ifq_reg __user *arg)
+  - purpose: provides a stub implementation that returns -EOPNOTSUPP when ZCRX support is not compiled into the kernel.
+  - parameters:
+    - struct io_ring_ctx *ctx: the io_uring context associated with the request.
+    - struct io_uring_zcrx_ifq_reg __user *arg: user-space pointer containing ZCRX registration parameters.
+  - return value: always returns -EOPNOTSUPP to indicate the operation is not supported.
 
-	- static inline void io_unregister_zcrx_ifqs(struct io_ring_ctx *ctx)
-	  - purpose: provides a no-op fallback for unregistering ZCRX interfaces when ZCRX is not supported.
-	  - parameters:
-  		- struct io_ring_ctx *ctx: the io_uring context to clean up.
-	  - return value: none (void).
+- static inline void io_unregister_zcrx_ifqs(struct io_ring_ctx *ctx)
+  - purpose: provides a no-op fallback for unregistering ZCRX interfaces when ZCRX is not supported.
+  - parameters:
+    - struct io_ring_ctx *ctx: the io_uring context to clean up.
+  - return value: none (void).
 
-	- static inline void io_shutdown_zcrx_ifqs(struct io_ring_ctx *ctx)
-	  - purpose: provides a no-op fallback for shutting down ZCRX interfaces when ZCRX is not supported.
-	  - parameters:
-  		- struct io_ring_ctx *ctx: the io_uring context to shut down.
-	  - return value: none (void).
+- static inline void io_shutdown_zcrx_ifqs(struct io_ring_ctx *ctx)
+  - purpose: provides a no-op fallback for shutting down ZCRX interfaces when ZCRX is not supported.
+  - parameters:
+    - struct io_ring_ctx *ctx: the io_uring context to shut down.
+  - return value: none (void).
 
-	- static inline int io_zcrx_recv(struct io_kiocb *req, struct io_zcrx_ifq *ifq, struct socket *sock, unsigned int flags, unsigned issue_flags, unsigned int *len)
-	  - purpose: provides a stub implementation of ZCRX receive operation that returns -EOPNOTSUPP when ZCRX is not supported.
-	  - parameters:
-  		- struct io_kiocb *req: the io_uring request structure.
-  		- struct io_zcrx_ifq *ifq: the ZCRX interface queue structure.
-  		- struct socket *sock: the socket to receive data from.
-  		- unsigned int flags: additional receive flags.
-  		- unsigned issue_flags: flags controlling request submission behavior.
-  		- unsigned int *len: pointer to store the length of the received data.
-	  - return value: always returns -EOPNOTSUPP to indicate the operation is not supported.
+- static inline int io_zcrx_recv(struct io_kiocb *req, struct io_zcrx_ifq *ifq, struct socket *sock, unsigned int flags, unsigned issue_flags, unsigned int *len)
+  - purpose: provides a stub implementation of ZCRX receive operation that returns -EOPNOTSUPP when ZCRX is not supported.
+  - parameters:
+    - struct io_kiocb *req: the io_uring request structure.
+    - struct io_zcrx_ifq *ifq: the ZCRX interface queue structure.
+    - struct socket *sock: the socket to receive data from.
+    - unsigned int flags: additional receive flags.
+    - unsigned issue_flags: flags controlling request submission behavior.
+    - unsigned int *len: pointer to store the length of the received data.
+  - return value: always returns -EOPNOTSUPP to indicate the operation is not supported.
+
 <!-- #endif -->
+- int io_recvzc(struct io_kiocb *req, unsigned int issue_flags);
+  - purpose: performs a zero-copy recv operation using io_uring
+  - parameters:
+    - struct io_kiocb *req: the I/O request
+    - unsigned int issue_flags: flags to control the operation
+  - return value: number of bytes received or a negative error code
 
-	- int io_recvzc(struct io_kiocb *req, unsigned int issue_flags);
-	  - purpose: performs a zero-copy recv operation using io_uring
-	  - parameters:
-  		- struct io_kiocb *req: the I/O request
-  		- unsigned int issue_flags: flags to control the operation
-	  - return value: number of bytes received or a negative error code
-
-	- int io_recvzc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
-	  - purpose: prepares a zero-copy recv operation from an SQE
-	  - parameters:
-  		- struct io_kiocb *req: the I/O request to be prepared
-  		- const struct io_uring_sqe *sqe: the submission queue entry
-	  - return value: 0 on success, or a negative error code
+- int io_recvzc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
+  - purpose: prepares a zero-copy recv operation from an SQE
+  - parameters:
+    - struct io_kiocb *req: the I/O request to be prepared
+    - const struct io_uring_sqe *sqe: the submission queue entry
+  - return value: 0 on success, or a negative error code
 
 <!-- #endif -->
