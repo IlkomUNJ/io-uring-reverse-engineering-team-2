@@ -22,6 +22,10 @@ struct io_xattr {
 	struct filename			*filename;
 };
 
+/**
+ * Cleans up resources associated with an xattr request,
+ * including releasing the allocated filename and freeing kernel buffers.
+ */
 void io_xattr_cleanup(struct io_kiocb *req)
 {
 	struct io_xattr *ix = io_kiocb_to_cmd(req, struct io_xattr);
@@ -33,6 +37,9 @@ void io_xattr_cleanup(struct io_kiocb *req)
 	kvfree(ix->ctx.kvalue);
 }
 
+/**
+ * Finishes an xattr request by cleaning up resources and setting the result.
+ */
 static void io_xattr_finish(struct io_kiocb *req, int ret)
 {
 	req->flags &= ~REQ_F_NEED_CLEANUP;
@@ -41,6 +48,11 @@ static void io_xattr_finish(struct io_kiocb *req, int ret)
 	io_req_set_res(req, ret, 0);
 }
 
+/**
+ * Prepares a getxattr or fgetxattr operation by extracting parameters from the SQE,
+ * allocating kernel buffers, and setting up the io_xattr structure for execution.
+ * Returns 0 on success or a negative error code on failure.
+ */
 static int __io_getxattr_prep(struct io_kiocb *req,
 			      const struct io_uring_sqe *sqe)
 {
@@ -73,11 +85,19 @@ static int __io_getxattr_prep(struct io_kiocb *req,
 	return 0;
 }
 
+/**
+ * Prepares an fgetxattr operation by calling __io_getxattr_prep.
+ * Returns 0 on success or a negative error code on failure.
+ */
 int io_fgetxattr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	return __io_getxattr_prep(req, sqe);
 }
 
+/**
+ * Prepares a getxattr operation by calling __io_getxattr_prep and
+ * resolving the filename from userspace. Returns 0 on success or a negative error code on failure.
+ */
 int io_getxattr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_xattr *ix = io_kiocb_to_cmd(req, struct io_xattr);
@@ -100,6 +120,10 @@ int io_getxattr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+/**
+ * Executes an fgetxattr operation, retrieving an extended attribute from a file.
+ * Sets the result in the request structure. Returns IOU_OK.
+ */
 int io_fgetxattr(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_xattr *ix = io_kiocb_to_cmd(req, struct io_xattr);
@@ -112,6 +136,10 @@ int io_fgetxattr(struct io_kiocb *req, unsigned int issue_flags)
 	return IOU_OK;
 }
 
+/**
+ * Executes a getxattr operation, retrieving an extended attribute from a filename.
+ * Sets the result in the request structure. Returns IOU_OK.
+ */
 int io_getxattr(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_xattr *ix = io_kiocb_to_cmd(req, struct io_xattr);
@@ -125,6 +153,11 @@ int io_getxattr(struct io_kiocb *req, unsigned int issue_flags)
 	return IOU_OK;
 }
 
+/**
+ * Prepares a setxattr or fsetxattr operation by extracting parameters from the SQE,
+ * allocating kernel buffers, and setting up the io_xattr structure for execution.
+ * Returns 0 on success or a negative error code on failure.
+ */
 static int __io_setxattr_prep(struct io_kiocb *req,
 			const struct io_uring_sqe *sqe)
 {
@@ -154,6 +187,10 @@ static int __io_setxattr_prep(struct io_kiocb *req,
 	return 0;
 }
 
+/**
+ * Prepares a setxattr operation by calling __io_setxattr_prep and
+ * resolving the filename from userspace. Returns 0 on success or a negative error code on failure.
+ */
 int io_setxattr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_xattr *ix = io_kiocb_to_cmd(req, struct io_xattr);
@@ -176,11 +213,19 @@ int io_setxattr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+/**
+ * Prepares an fsetxattr operation by calling __io_setxattr_prep.
+ * Returns 0 on success or a negative error code on failure.
+ */
 int io_fsetxattr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	return __io_setxattr_prep(req, sqe);
 }
 
+/**
+ * Executes an fsetxattr operation, setting an extended attribute on a file.
+ * Sets the result in the request structure. Returns IOU_OK.
+ */
 int io_fsetxattr(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_xattr *ix = io_kiocb_to_cmd(req, struct io_xattr);
@@ -193,6 +238,10 @@ int io_fsetxattr(struct io_kiocb *req, unsigned int issue_flags)
 	return IOU_OK;
 }
 
+/**
+ * Executes a setxattr operation, setting an extended attribute on a filename.
+ * Sets the result in the request structure. Returns IOU_OK.
+ */
 int io_setxattr(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_xattr *ix = io_kiocb_to_cmd(req, struct io_xattr);

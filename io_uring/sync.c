@@ -22,6 +22,11 @@ struct io_sync {
 	int				mode;
 };
 
+/* Prepares a sync_file_range operation by extracting the offset, length, 
+ * and sync_range_flags from the submission queue entry (SQE). Marks the 
+ * request as requiring asynchronous execution. 
+ * Returns -EINVAL if unsupported fields are set in the SQE.
+*/
 int io_sfr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_sync *sync = io_kiocb_to_cmd(req, struct io_sync);
@@ -37,6 +42,9 @@ int io_sfr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+/* Performs the actual sync_file_range() system call, which synchronizes a file range with storage. 
+ * This call must run in a blocking context. The result of the syscall is stored in the request.
+ */
 int io_sync_file_range(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sync *sync = io_kiocb_to_cmd(req, struct io_sync);
@@ -50,6 +58,10 @@ int io_sync_file_range(struct io_kiocb *req, unsigned int issue_flags)
 	return IOU_OK;
 }
 
+/*
+ * Prepares an fsync operation by validating and extracting the fsync_flags, offset, and length from the SQE. 
+ * Only IORING_FSYNC_DATASYNC is accepted as a valid flag. Marks the request as asynchronous.
+ */
 int io_fsync_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_sync *sync = io_kiocb_to_cmd(req, struct io_sync);
@@ -67,6 +79,11 @@ int io_fsync_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+/**
+ * Executes an fsync or fdatasync operation via vfs_fsync_range() 
+ * to flush file data and/or metadata to disk. Always runs in a blocking context. 
+ * The flush range is based on off and len.
+ */
 int io_fsync(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sync *sync = io_kiocb_to_cmd(req, struct io_sync);
@@ -82,6 +99,10 @@ int io_fsync(struct io_kiocb *req, unsigned int issue_flags)
 	return IOU_OK;
 }
 
+/**
+ * Prepares a fallocate operation by validating and extracting offset, length, and mode from the SQE. 
+ * Returns -EINVAL if invalid fields are set. Marks the request as asynchronous.
+ */
 int io_fallocate_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_sync *sync = io_kiocb_to_cmd(req, struct io_sync);
@@ -96,6 +117,11 @@ int io_fallocate_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+/**
+ * Performs the fallocate() system call to allocate space in a file without initializing data. 
+ * It notifies the filesystem of file modification after successful allocation. 
+ * Always requires blocking context.
+ */
 int io_fallocate(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sync *sync = io_kiocb_to_cmd(req, struct io_sync);

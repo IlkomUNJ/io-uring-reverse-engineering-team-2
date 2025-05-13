@@ -39,12 +39,20 @@
 #include "truncate.h"
 #include "zcrx.h"
 
+/**
+ * Return -ECANCELED for an operation that should never be issued.
+ * Used as a placeholder for unsupported or internal-only ops.
+ */
 static int io_no_issue(struct io_kiocb *req, unsigned int issue_flags)
 {
 	WARN_ON_ONCE(1);
 	return -ECANCELED;
 }
 
+/**
+ * Return -EOPNOTSUPP for an operation that is not supported.
+ * Used as a prep function for unsupported ops.
+ */
 static __maybe_unused int io_eopnotsupp_prep(struct io_kiocb *kiocb,
 					     const struct io_uring_sqe *sqe)
 {
@@ -817,6 +825,10 @@ const struct io_cold_def io_cold_defs[] = {
 	},
 };
 
+/**
+ * Get the string name of an io_uring opcode.
+ * Returns the name if valid, or "INVALID" if not.
+ */
 const char *io_uring_get_opcode(u8 opcode)
 {
 	if (opcode < IORING_OP_LAST)
@@ -824,6 +836,10 @@ const char *io_uring_get_opcode(u8 opcode)
 	return "INVALID";
 }
 
+/**
+ * Check if an io_uring opcode is supported by the kernel.
+ * Returns true if supported, false otherwise.
+ */
 bool io_uring_op_supported(u8 opcode)
 {
 	if (opcode < IORING_OP_LAST &&
@@ -832,6 +848,7 @@ bool io_uring_op_supported(u8 opcode)
 	return false;
 }
 
+// Initialize the io_uring operation table at boot time. Checks for consistency and required table
 void __init io_uring_optable_init(void)
 {
 	int i;

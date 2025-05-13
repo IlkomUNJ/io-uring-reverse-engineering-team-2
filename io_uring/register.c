@@ -35,6 +35,11 @@
 #define IORING_MAX_RESTRICTIONS	(IORING_RESTRICTION_LAST + \
 				 IORING_REGISTER_LAST + IORING_OP_LAST)
 
+
+/**
+ * Probe supported io_uring operations and fill user probe structure.
+ * Returns 0 on success, negative error code on failure.
+ */				 
 static __cold int io_probe(struct io_ring_ctx *ctx, void __user *arg,
 			   unsigned nr_args)
 {
@@ -74,6 +79,10 @@ out:
 	return ret;
 }
 
+/**
+ * Unregister a personality from the io_uring context.
+ * Returns 0 on success, -EINVAL if not found.
+ */
 int io_unregister_personality(struct io_ring_ctx *ctx, unsigned id)
 {
 	const struct cred *creds;
@@ -87,7 +96,10 @@ int io_unregister_personality(struct io_ring_ctx *ctx, unsigned id)
 	return -EINVAL;
 }
 
-
+/**
+ * Register a new personality for the io_uring context.
+ * Returns personality id on success, negative error code on failure.
+ */
 static int io_register_personality(struct io_ring_ctx *ctx)
 {
 	const struct cred *creds;
@@ -105,6 +117,10 @@ static int io_register_personality(struct io_ring_ctx *ctx)
 	return id;
 }
 
+/**
+ * Parse user-provided restrictions for the ring.
+ * Returns 0 on success, negative error code on failure.
+ */
 static __cold int io_parse_restrictions(void __user *arg, unsigned int nr_args,
 					struct io_restriction *restrictions)
 {
@@ -155,6 +171,10 @@ err:
 	return ret;
 }
 
+/**
+ * Register restrictions for the io_uring context.
+ * Returns 0 on success, negative error code on failure.
+ */
 static __cold int io_register_restrictions(struct io_ring_ctx *ctx,
 					   void __user *arg, unsigned int nr_args)
 {
@@ -177,6 +197,11 @@ static __cold int io_register_restrictions(struct io_ring_ctx *ctx,
 	return ret;
 }
 
+
+/**
+ * Enable rings that were started disabled.
+ * Returns 0 on success, negative error code on failure.
+ */
 static int io_register_enable_rings(struct io_ring_ctx *ctx)
 {
 	if (!(ctx->flags & IORING_SETUP_R_DISABLED))
@@ -201,6 +226,10 @@ static int io_register_enable_rings(struct io_ring_ctx *ctx)
 	return 0;
 }
 
+/**
+ * Set IOWQ CPU affinity for the context or SQPOLL thread.
+ * Returns 0 on success, negative error code on failure.
+ */
 static __cold int __io_register_iowq_aff(struct io_ring_ctx *ctx,
 					 cpumask_var_t new_mask)
 {
@@ -217,6 +246,10 @@ static __cold int __io_register_iowq_aff(struct io_ring_ctx *ctx,
 	return ret;
 }
 
+/**
+ * Register IOWQ CPU affinity from user-provided mask.
+ * Returns 0 on success, negative error code on failure.
+ */
 static __cold int io_register_iowq_aff(struct io_ring_ctx *ctx,
 				       void __user *arg, unsigned len)
 {
@@ -249,11 +282,13 @@ static __cold int io_register_iowq_aff(struct io_ring_ctx *ctx,
 	return ret;
 }
 
+// Unregister IOWQ CPU affinity for the context
 static __cold int io_unregister_iowq_aff(struct io_ring_ctx *ctx)
 {
 	return __io_register_iowq_aff(ctx, NULL);
 }
 
+// Register maximum number of IOWQ workers
 static __cold int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 					       void __user *arg)
 	__must_hold(&ctx->uring_lock)
@@ -340,6 +375,10 @@ err:
 	return ret;
 }
 
+/**
+ * Register a clockid for the io_uring context.
+ * Returns 0 on success, negative error code on failure.
+ */
 static int io_register_clock(struct io_ring_ctx *ctx,
 			     struct io_uring_clock_register __user *arg)
 {
@@ -377,6 +416,7 @@ struct io_ring_ctx_rings {
 	struct io_mapped_region ring_region;
 };
 
+// Free memory regions associated with io_uring rings
 static void io_register_free_rings(struct io_ring_ctx *ctx,
 				   struct io_uring_params *p,
 				   struct io_ring_ctx_rings *r)
@@ -395,6 +435,7 @@ static void io_register_free_rings(struct io_ring_ctx *ctx,
 #define COPY_FLAGS	(IORING_SETUP_NO_SQARRAY | IORING_SETUP_SQE128 | \
 			 IORING_SETUP_CQE32 | IORING_SETUP_NO_MMAP)
 
+// Resize the SQ/CQ rings for the io_uring context			 
 static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 {
 	struct io_uring_region_desc rd;
@@ -581,6 +622,10 @@ out:
 	return ret;
 }
 
+ /**
+ * Register a memory region for io_uring.
+ * Returns 0 on success, negative error code on failure.
+ */
 static int io_register_mem_region(struct io_ring_ctx *ctx, void __user *uarg)
 {
 	struct io_uring_mem_region_reg __user *reg_uptr = uarg;
@@ -626,6 +671,10 @@ static int io_register_mem_region(struct io_ring_ctx *ctx, void __user *uarg)
 	return 0;
 }
 
+/**
+ * Main handler for io_uring_register() syscall.
+ * Dispatches registration opcodes.
+ */
 static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 			       void __user *arg, unsigned nr_args)
 	__releases(ctx->uring_lock)
@@ -841,6 +890,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 }
 
 /*
+ * Get a file pointer for given fd
  * Given an 'fd' value, return the ctx associated with if. If 'registered' is
  * true, then the registered index is used. Otherwise, the normal fd table.
  * Caller must call fput() on the returned file, unless it's an ERR_PTR.
@@ -875,6 +925,7 @@ struct file *io_uring_register_get_file(unsigned int fd, bool registered)
 }
 
 /*
+ * Handle "blind" registration opcodes.
  * "blind" registration opcodes are ones where there's no ring given, and
  * hence the source fd must be -1.
  */
@@ -900,6 +951,7 @@ static int io_uring_register_blind(unsigned int opcode, void __user *arg,
 	return -EINVAL;
 }
 
+// System call entry point for io_uring_register
 SYSCALL_DEFINE4(io_uring_register, unsigned int, fd, unsigned int, opcode,
 		void __user *, arg, unsigned int, nr_args)
 {
