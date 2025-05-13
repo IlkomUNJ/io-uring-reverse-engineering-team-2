@@ -1933,35 +1933,35 @@ function bellow not available at version v6.14
 
 ### zcrx.h
 <!-- #if defined(CONFIG_IO_URING_ZCRX) -->
-  - int io_register_zcrx_ifq(struct io_ring_ctx *ctx, struct io_uring_zcrx_ifq_reg __user *arg);
-   - purpose: registers a Zero-Copy Receive (ZCRX) interface queue (IFQ) with the given io_uring context
-   - parameters:
-     - struct io_ring_ctx *ctx: the io_uring context
-     - struct io_uring_zcrx_ifq_reg __user *arg: user-space pointer containing the IFQ registration data
-   - return value: returns 0 on success, or a negative error code
+- int io_register_zcrx_ifq(struct io_ring_ctx *ctx, struct io_uring_zcrx_ifq_reg __user *arg);
+  - purpose: registers a Zero-Copy Receive (ZCRX) interface queue (IFQ) with the given io_uring context
+  - parameters:
+    - struct io_ring_ctx *ctx: the io_uring context
+    - struct io_uring_zcrx_ifq_reg __user *arg: user-space pointer containing the IFQ registration data
+  - return value: returns 0 on success, or a negative error code
 
-  - void io_unregister_zcrx_ifqs(struct io_ring_ctx *ctx);
-   - purpose: unregisters all ZCRX IFQs from the given context
-   - parameters:
-     - struct io_ring_ctx *ctx: the io_uring context
-   - return value: none (void)
+- void io_unregister_zcrx_ifqs(struct io_ring_ctx *ctx);
+  - purpose: unregisters all ZCRX IFQs from the given context
+  - parameters:
+    - struct io_ring_ctx *ctx: the io_uring context
+  - return value: none (void)
 
-  - void io_shutdown_zcrx_ifqs(struct io_ring_ctx *ctx);
-   - purpose: shuts down all active ZCRX IFQs associated with the context
-   - parameters:
-     - struct io_ring_ctx *ctx: the io_uring context
-   - return value: none (void)
+- void io_shutdown_zcrx_ifqs(struct io_ring_ctx *ctx);
+  - purpose: shuts down all active ZCRX IFQs associated with the context
+  - parameters:
+    - struct io_ring_ctx *ctx: the io_uring context
+  - return value: none (void)
 
-  - int io_zcrx_recv(struct io_kiocb *req, struct io_zcrx_ifq *ifq, struct socket *sock, unsigned int flags, unsigned issue_flags, unsigned int *len);
-   - purpose: receives data using ZCRX from a socket through a given interface queue
-   - parameters:
-     - struct io_kiocb *req: the I/O request
-     - struct io_zcrx_ifq *ifq: the interface queue to use
-     - struct socket *sock: the socket to receive data from
-     - unsigned int flags: flags for the receive operation
-     - unsigned issue_flags: issue-specific flags
-     - unsigned int *len: pointer to receive the length of the received data
-   - return value: number of bytes received or a negative error code
+- int io_zcrx_recv(struct io_kiocb *req, struct io_zcrx_ifq *ifq, struct socket *sock, unsigned int flags, unsigned issue_flags, unsigned int *len);
+  - purpose: receives data using ZCRX from a socket through a given interface queue
+  - parameters:
+    - struct io_kiocb *req: the I/O request
+    - struct io_zcrx_ifq *ifq: the interface queue to use
+    - struct socket *sock: the socket to receive data from
+    - unsigned int flags: flags for the receive operation
+    - unsigned issue_flags: issue-specific flags
+    - unsigned int *len: pointer to receive the length of the received data
+  - return value: number of bytes received or a negative error code
 <!-- #else -->
 	- static inline int io_register_zcrx_ifq(struct io_ring_ctx *ctx, struct io_uring_zcrx_ifq_reg __user *arg)
 	  - purpose: provides a stub implementation that returns -EOPNOTSUPP when ZCRX support is not compiled into the kernel.
